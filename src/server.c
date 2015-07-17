@@ -4,6 +4,7 @@
 
 #include "server.h"
 #include "log.h"
+#include "http.h"
 
 #include <errno.h>
 #include <stdlib.h>
@@ -17,6 +18,7 @@
 
 static int sd = -1;
 static pthread_t thread;
+static const size_t buffer_size = 16384;
 
 struct client {
 	pthread_t thread;
@@ -69,6 +71,7 @@ void server_init(int port, const char* listen_addr){
 		goto error;
 	}
 
+	logmsg("Tweaklib server listening on %s:%d\n", "127.0.0.1", port); /* @todo listen_addr */
 	return;
 
   error:
@@ -111,8 +114,68 @@ static void* server_loop(void* arg){
 	return NULL;
 }
 
+static void handle_get(int sd, const http_request_t req, http_response_t resp){
+	if ( strcmp(req->url, "/") == 0 ){
+		resp->status = "HTTP/1.1 200 OK";
+		header_add(&resp->header, "Content-Type", "text/plain");
+		http_response_write_header(sd, resp);
+
+		const char* body = "lorem ipsum";
+		http_response_write_chunk(sd, body, strlen(body));
+		http_response_write_chunk(sd, NULL, 0);
+	}
+}
+
+static void handle_post(int sd, const http_request_t req, http_response_t resp){
+
+}
+
 void* client_loop(void* ptr){
 	struct client* client = (struct client*)ptr;
+	char* buf = malloc(buffer_size);
+
+	for (;;){
+		/* wait for next request */
+		ssize_t bytes = recv(client->sd, buf, buffer_size-1, 0); /* -1 so null terminator will fit */
+		if ( bytes == -1 ){
+			logmsg("recv() failed: %s\n", strerror(errno));
+			break;
+		} else if ( bytes == 0 ){
+			logmsg("connection closed\n");
+			break;
+		}
+
+		/** @todo handle when request is larger than buffer_size */
+
+		/* force null-terminator */
+		buf[bytes] = 0;
+
+		/* parse request */
+		struct http_request req;
+		http_request_init(&req);
+		if ( !http_request_read(&req, buf, bytes) ){
+			logmsg("Malformed request ignored.\n");
+			http_request_free(&req);
+			continue;
+		}
+
+		/* generate response */
+		struct http_response resp;
+		http_response_init(&resp);
+		switch ( req.method ){
+		case HTTP_GET:
+			handle_get(client->sd, &req, &resp);
+			break;
+
+		case HTTP_POST:
+			handle_post(client->sd, &req, &resp);
+			break;
+		}
+
+		/* free resources allocated for this request */
+		http_response_free(&resp);
+		http_request_free(&req);
+	}
 
 	/* close client connection */
 	shutdown(client->sd, SHUT_RDWR);
