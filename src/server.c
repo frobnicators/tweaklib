@@ -17,6 +17,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
+#include <arpa/inet.h>
 
 static int sd = -1;
 static pthread_t thread;
@@ -54,7 +55,10 @@ void server_init(int port, const char* listen_addr){
 	struct sockaddr_in addr = {0,};
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(port);
-	addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK); /** @todo listen_addr */
+	if ( inet_pton(AF_INET, listen_addr, &addr.sin_addr.s_addr) != 1 ){
+		logmsg("inet_pton() failed: invalid address\n");
+		goto error;
+	}
 	if ( bind(sd, (struct sockaddr *)&addr, sizeof(addr)) < 0 ){
 		logmsg("bind() failed: %s\n", strerror(errno));
 		goto error;
@@ -73,7 +77,7 @@ void server_init(int port, const char* listen_addr){
 		goto error;
 	}
 
-	logmsg("Tweaklib server listening on %s:%d\n", "127.0.0.1", port); /* @todo listen_addr */
+	logmsg("Tweaklib server listening on %s:%d\n", listen_addr, port);
 	return;
 
   error:
