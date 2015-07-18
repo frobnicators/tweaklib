@@ -51,7 +51,7 @@ void server_init(int port, const char* listen_addr){
 	}
 
 	/* bind to listening address */
-	struct sockaddr_in addr;
+	struct sockaddr_in addr = {0,};
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(port);
 	addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK); /** @todo listen_addr */

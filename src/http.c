@@ -10,6 +10,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <arpa/inet.h>
 
 static const int HTTP_OK = 1;
 
@@ -138,8 +139,30 @@ void http_response_status(http_response_t resp, int code, const char* msg){
 	}
 }
 
+static const char* peer_addr(int sd){
+	struct sockaddr_storage addr;
+	socklen_t len = sizeof(struct sockaddr_storage);
+	if ( getpeername(sd, (struct sockaddr*)&addr, &len) != 0 ){
+		return "-";
+	}
+
+	char buf[INET6_ADDRSTRLEN];
+	const char* r = NULL;
+
+	switch ( addr.ss_family ){
+	case AF_INET:
+		r = inet_ntop(addr.ss_family, &((struct sockaddr_in*)&addr)->sin_addr, buf, sizeof(buf));
+		break;
+	case AF_INET6:
+		r = inet_ntop(addr.ss_family, &((struct sockaddr_in6*)&addr)->sin6_addr, buf, sizeof(buf));
+		break;
+	}
+
+	return r ? r : "-";
+}
+
 void http_response_write_header(int sd, http_request_t req, http_response_t resp){
-	logmsg("%s %s -> %d\n", method_str(req->method), req->url, resp->statuscode);
+	logmsg("%s - %s %s -> %d\n", peer_addr(sd), method_str(req->method), req->url, resp->statuscode);
 	req->status = resp->statuscode;
 
 	send(sd, resp->statusline, strlen(resp->statusline), MSG_MORE);
