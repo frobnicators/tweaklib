@@ -119,16 +119,27 @@ static void handle_get(int sd, const http_request_t req, http_response_t resp){
 	/* handle static files */
 	struct file_entry* entry = file_table;
 	while ( entry->filename ){
-		if ( strcmp(entry->filename, req->url) != 0 ) continue;
+		if ( strcmp(entry->filename, req->url) != 0 ){
+			entry++;
+			continue;
+		}
 
+		/* static file found, send it */
 		resp->status = "HTTP/1.1 200 OK";
 		header_add(&resp->header, "Content-Type", entry->mime);
 		http_response_write_header(sd, req, resp);
-
 		http_response_write_chunk(sd, entry->data, entry->bytes);
 		http_response_write_chunk(sd, NULL, 0);
-		break;
+		return;
 	}
+
+	/* nothing found, 404 */
+	const char* error = "<h1>404: Not Found</h1>";
+	resp->status = "HTTP/1.1 404 Not Found";
+	header_add(&resp->header, "Content-Type", "text/html");
+	http_response_write_header(sd, req, resp);
+	http_response_write_chunk(sd, error, strlen(error));
+	http_response_write_chunk(sd, NULL, 0);
 }
 
 static void handle_post(int sd, const http_request_t req, http_response_t resp){
