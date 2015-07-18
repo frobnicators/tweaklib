@@ -45,6 +45,7 @@ static const size_t buffer_size = 16384;
 
 static void* server_loop(void*);
 static void* client_loop(void*);
+static void websocket_loop(struct worker* worker);
 
 void server_init(int port, const char* listen_addr){
 	/* make sure server isn't initailzed twice */
@@ -199,7 +200,7 @@ static void write_error(int sd, http_request_t req, http_response_t resp, int co
 
 	header_add(&resp->header, "Content-Type", "text/html");
 	http_response_status(resp, 404, message);
-	http_response_write_header(sd, req, resp);
+	http_response_write_header(sd, req, resp, 0);
 	if ( html ){
 		http_response_write_chunk(sd, html, strlen(html));
 	}
@@ -235,20 +236,20 @@ static const char* websocket_derive_key(const char* key){
 	return hex;
 }
 
-static void handle_websocket(int sd, const http_request_t req, http_response_t resp){
+static void handle_websocket(struct worker* client, const http_request_t req, http_response_t resp){
 	const char* upgrade = header_find(&req->header, "Upgrade");
 	const char* key = header_find(&req->header, "Sec-WebSocket-Key");
 	int version = atoi(header_find(&req->header, "Sec-WebSocket-Version") ?: "0");
 
 	/* validate that this request is actually requesting a websocket */
 	if ( !upgrade || strcmp(upgrade, "websocket") != 0 ){
-		write_error(sd, req, resp, 400, "Only websockets supported");
+		write_error(client->sd, req, resp, 400, "Only websockets supported");
 		return;
 	}
 
 	/* for simplicity only version 13 (current) is supported */
 	if ( version != 13 ){
-		write_error(sd, req, resp, 400, "Only websocket v13 supported");
+		write_error(client->sd, req, resp, 400, "Only websocket v13 supported");
 		return;
 	}
 
@@ -256,15 +257,19 @@ static void handle_websocket(int sd, const http_request_t req, http_response_t r
 	header_add(&resp->header, "Upgrade", "websocket");
 	header_add(&resp->header, "Connection", "Upgrade");
 	header_add(&resp->header, "Sec-WebSocket-Accept", websocket_derive_key(key));
+	header_add(&resp->header, "Sec-WebSocket-Protocol", "v1.tweaklib.sidvind.com");
+	header_del(&resp->header, "Transfer-Encoding");
 	http_response_status(resp, 101, http_status_description(101));
-	http_response_write_header(sd, req, resp);
-	http_response_write_chunk(sd, NULL, 0);
+	http_response_write_header(client->sd, req, resp, 1);
+
+	/* retain this connection in a new loop */
+	websocket_loop(client);
 }
 
-static void handle_get(int sd, const http_request_t req, http_response_t resp){
+static void handle_get(struct worker* client, const http_request_t req, http_response_t resp){
 	/* handle actual websocket */
 	if ( strcmp(req->url, "/socket") == 0 ){
-		handle_websocket(sd, req, resp);
+		handle_websocket(client, req, resp);
 		return;
 	}
 
@@ -279,18 +284,40 @@ static void handle_get(int sd, const http_request_t req, http_response_t resp){
 		/* static file found, send it */
 		header_add(&resp->header, "Content-Type", entry->mime);
 		http_response_status(resp, 200, "OK");
-		http_response_write_header(sd, req, resp);
-		http_response_write_chunk(sd, entry->data, entry->bytes);
-		http_response_write_chunk(sd, NULL, 0);
+		http_response_write_header(client->sd, req, resp, 0);
+		http_response_write_chunk(client->sd, entry->data, entry->bytes);
+		http_response_write_chunk(client->sd, NULL, 0);
 		return;
 	}
 
 	/* nothing found, 404 */
-	write_error(sd, req, resp, 404, NULL);
+	write_error(client->sd, req, resp, 404, NULL);
 }
 
-static void handle_post(int sd, const http_request_t req, http_response_t resp){
+static void handle_post(struct worker* client, const http_request_t req, http_response_t resp){
 
+}
+
+void websocket_loop(struct worker* client){
+	char* buf = malloc(buffer_size);
+
+	for (;;){
+		logmsg("websocket waiting\n");
+
+		/* wait for next request */
+		ssize_t bytes = recv(client->sd, buf, buffer_size-1, 0); /* -1 so null terminator will fit */
+		if ( bytes == -1 ){
+			logmsg("recv() failed: %s\n", strerror(errno));
+			break;
+		} else if ( bytes == 0 ){
+			logmsg("connection closed\n");
+			break;
+		}
+
+		logmsg("websocket received %d bytes\n", (int)bytes);
+	}
+
+	free(buf);
 }
 
 void* client_loop(void* ptr){
@@ -327,11 +354,11 @@ void* client_loop(void* ptr){
 		http_response_init(&resp);
 		switch ( req.method ){
 		case HTTP_GET:
-			handle_get(client->sd, &req, &resp);
+			handle_get(client, &req, &resp);
 			break;
 
 		case HTTP_POST:
-			handle_post(client->sd, &req, &resp);
+			handle_post(client, &req, &resp);
 			break;
 		}
 

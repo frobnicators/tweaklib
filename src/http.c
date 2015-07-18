@@ -38,6 +38,23 @@ void header_add(struct header_list* hdr, const char* key, const char* value){
 	hdr->num_elem++;
 }
 
+void header_del(struct header_list* hdr, const char* key){
+	struct header* existing = header_find_int(hdr, key);
+	if ( !existing ){
+		return;
+	}
+
+	/* release resources for this header */
+	free(existing->key);
+	free(existing->value);
+
+	/* move the last header to this location */
+	struct header* last = &hdr->kv[hdr->num_elem-1];
+	existing->key = last->key;
+	existing->value = last->value;
+	hdr->num_elem--;
+}
+
 const struct header* header_begin(const struct header_list* hdr){
 	if ( hdr->num_elem == 0 ) return NULL;
 	return &hdr->kv[0];
@@ -203,7 +220,7 @@ static const char* peer_addr(int sd){
 	return r ? r : "-";
 }
 
-void http_response_write_header(int sd, http_request_t req, http_response_t resp){
+void http_response_write_header(int sd, http_request_t req, http_response_t resp, int only_header){
 	logmsg("%s - %s %s -> %d\n", peer_addr(sd), method_str(req->method), req->url, resp->statuscode);
 	req->status = resp->statuscode;
 
@@ -217,7 +234,7 @@ void http_response_write_header(int sd, http_request_t req, http_response_t resp
 		send(sd, "\r\n", 2, MSG_MORE);
 	}
 
-	send(sd, "\r\n", 2, MSG_MORE);
+	send(sd, "\r\n", 2, only_header ? 0 : MSG_MORE);
 }
 
 void http_response_write_chunk(int sd, const char* data, size_t bytes){

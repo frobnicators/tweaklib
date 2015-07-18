@@ -41,6 +41,7 @@ typedef struct http_request* http_request_t;
 typedef struct http_response* http_response_t;
 
 void header_add(struct header_list* hdr, const char* key, const char* value);
+void header_del(struct header_list* hdr, const char* key);
 const struct header* header_begin(const struct header_list* hdr);
 const struct header* header_end(const struct header_list* hdr);
 const char* header_find(const struct header_list* hdr, const char* key);
@@ -54,7 +55,7 @@ void http_response_init(http_response_t resp);
 void http_response_free(http_response_t resp);
 
 void http_response_status(http_response_t resp, int code, const char* msg);
-void http_response_write_header(int sd, http_request_t req, http_response_t resp);
+void http_response_write_header(int sd, http_request_t req, http_response_t resp, int only_header);
 void http_response_write_chunk(int sd, const char* data, size_t bytes);
 
 /**
