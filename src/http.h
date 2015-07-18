@@ -41,8 +41,9 @@ typedef struct http_request* http_request_t;
 typedef struct http_response* http_response_t;
 
 void header_add(struct header_list* hdr, const char* key, const char* value);
-struct header* header_begin(struct header_list* hdr);
-struct header* header_end(struct header_list*hdr);
+const struct header* header_begin(const struct header_list* hdr);
+const struct header* header_end(const struct header_list* hdr);
+const char* header_find(const struct header_list* hdr, const char* key);
 
 void http_request_init(http_request_t req);
 void http_request_free(http_request_t req);

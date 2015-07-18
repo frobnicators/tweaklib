@@ -14,12 +14,22 @@
 
 static const int HTTP_OK = 1;
 
+static struct header* header_find_int(const struct header_list* hdrlist, const char* key);
+
 static void header_alloc(struct header_list* hdr, size_t elem){
 	hdr->num_alloc = elem;
 	hdr->kv = realloc(hdr->kv, sizeof(struct header) * elem);
 }
 
 void header_add(struct header_list* hdr, const char* key, const char* value){
+	/* overwrite header if one exists already */
+	struct header* existing = header_find_int(hdr, key);
+	if ( existing ){
+		free(existing->value);
+		existing->value = strdup(value);
+		return;
+	}
+
 	if ( hdr->num_elem >= hdr->num_alloc ){
 		header_alloc(hdr, hdr->num_alloc + 25);
 	}
@@ -28,14 +38,32 @@ void header_add(struct header_list* hdr, const char* key, const char* value){
 	hdr->num_elem++;
 }
 
-struct header* header_begin(struct header_list* hdr){
+const struct header* header_begin(const struct header_list* hdr){
 	if ( hdr->num_elem == 0 ) return NULL;
 	return &hdr->kv[0];
 }
 
-struct header* header_end(struct header_list*hdr){
+const struct header* header_end(const struct header_list* hdr){
 	if ( hdr->num_elem == 0 ) return NULL;
 	return &hdr->kv[hdr->num_elem];
+}
+
+static struct header* header_find_int(const struct header_list* hdrlist, const char* key){
+	/* hack to cast away const without warnings so the internal version can return
+	 * a non-const pointer but the exposed one is still const */
+	union { const struct header* ro; struct header* rw; } hdr;
+
+	for ( hdr.ro = header_begin(hdrlist); hdr.ro != header_end(hdrlist); hdr.ro++ ){
+		if ( strcmp(hdr.ro->key, key) == 0 ){
+			return hdr.rw;
+		}
+	}
+	return NULL;
+}
+
+const char* header_find(const struct header_list* hdrlist, const char* key){
+	const struct header* hdr = header_find_int(hdrlist, key);
+	return hdr ? hdr->value : NULL;
 }
 
 static int http_valid_protocol(http_request_t req, const char* protocol){
@@ -137,6 +165,9 @@ const char* method_str(enum http_method method){
 
 const char* http_status_description(int code){
 	switch ( code ){
+	case 101: return "Switching Protocols";
+	case 400: return "Bad Request";
+	case 403: return "Forbidden";
 	case 404: return "Not Found";
 	case 500: return "Internal Server Error";
 	default: return "Invalid status";
