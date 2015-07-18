@@ -61,10 +61,6 @@ static int http_parse_request(http_request_t req, char* line){
 	}
 
 	req->url = strdup(url);
-
-	logmsg("method: %s\n", method);
-	logmsg("url: %s\n", url);
-	logmsg("protocol: %s\n", protocol);
 	return 1;
 }
 
@@ -119,11 +115,17 @@ void http_response_free(http_response_t resp){
 	free(resp->body);
 }
 
-void http_response_set_body(http_response_t resp, const char* body){
-	resp->body = strdup(body);
+const char* method_str(enum http_method method){
+	switch ( method ){
+	case HTTP_GET: return "GET";
+	case HTTP_POST: return "POST";
+	}
+	return "UNKNOWN";
 }
 
-void http_response_write_header(int sd, http_response_t resp){
+void http_response_write_header(int sd, http_request_t req, http_response_t resp){
+	logmsg("%s %s -> %s\n", method_str(req->method), req->url, resp->status);
+
 	send(sd, resp->status, strlen(resp->status), MSG_MORE);
 	send(sd, "\r\n", 2, MSG_MORE);
 

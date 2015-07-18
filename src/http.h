@@ -48,7 +48,7 @@ int http_request_read(http_request_t req, char* buf, size_t bytes);
 void http_response_init(http_response_t resp);
 void http_response_free(http_response_t resp);
 
-void http_response_write_header(int sd, http_response_t resp);
+void http_response_write_header(int sd, http_request_t req, http_response_t resp);
 void http_response_write_chunk(int sd, const char* data, size_t bytes);
 
 #ifdef __cplusplus

@@ -5,6 +5,7 @@
 #include "server.h"
 #include "log.h"
 #include "http.h"
+#include "static.h"
 
 #include <errno.h>
 #include <stdlib.h>
@@ -115,14 +116,18 @@ static void* server_loop(void* arg){
 }
 
 static void handle_get(int sd, const http_request_t req, http_response_t resp){
-	if ( strcmp(req->url, "/") == 0 ){
-		resp->status = "HTTP/1.1 200 OK";
-		header_add(&resp->header, "Content-Type", "text/plain");
-		http_response_write_header(sd, resp);
+	/* handle static files */
+	struct file_entry* entry = file_table;
+	while ( entry->filename ){
+		if ( strcmp(entry->filename, req->url) != 0 ) continue;
 
-		const char* body = "lorem ipsum";
-		http_response_write_chunk(sd, body, strlen(body));
+		resp->status = "HTTP/1.1 200 OK";
+		header_add(&resp->header, "Content-Type", entry->mime);
+		http_response_write_header(sd, req, resp);
+
+		http_response_write_chunk(sd, entry->data, entry->bytes);
 		http_response_write_chunk(sd, NULL, 0);
+		break;
 	}
 }
 
