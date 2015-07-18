@@ -13,7 +13,6 @@ libtweak_la_SOURCES = src/tweak.c src/http.c src/http.h src/server.c src/server.
 example_LDADD = libtweak.la
 example_SOURCES = src/example.c
 
-pack_LDADD = -lmagic
 pack_SOURCES = src/pack.c
 
 src/static.c: pack static/index.html static/tweaklib.js static/style.css

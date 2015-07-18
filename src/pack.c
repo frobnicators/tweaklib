@@ -5,9 +5,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
-#include <magic.h>
-
-static magic_t magic;
 
 static const char* strip_prefix(const char* filename){
 	if ( strncmp(filename, "static/", 7) == 0 ){
@@ -31,7 +28,15 @@ static const char* mangle_filename(const char* filename){
 	return buf;
 }
 
+static const char* mimetype(const char* filename){
+	const size_t len = strlen(filename);
 
+	if ( strcmp(filename + (len-5), ".html") == 0 ) return "text/html; charset=utf-8";
+	if ( strcmp(filename + (len-4), ".css") == 0 ) return "text/css";
+	if ( strcmp(filename + (len-3), ".js") == 0 ) return "application/javascript";
+
+	return "text/plain";
+}
 
 static int need_escape(char ch){
 	return ch == '"' || ch == '\n' || ch == '\r' || ch == '\t' || ch == '\\';
@@ -44,10 +49,15 @@ static int escaped(char ch){
 	return ch;
 }
 
+static void write_entry(const char* src, const char* dst){
+	const char* filename = strip_prefix(src);
+	const char* varname = mangle_filename(strip_prefix(dst));
+	const char* mime = mimetype(dst);
+	printf("\t{\"/%s\", \"%s\", tweak_static_%s, sizeof(tweak_static_%s)-1},\n", filename, mime, varname, varname);
+}
+
 int main(int argc, const char* argv[]){
 	printf("#include \"static.h\"\n");
-	magic = magic_open(MAGIC_MIME_TYPE);
-	magic_load(magic, NULL);
 
 	/* file data */
 	for ( int i = 2; i < argc; i++ ){
@@ -76,15 +86,10 @@ int main(int argc, const char* argv[]){
 
 	/* file table */
 	printf("struct file_entry file_table[] = {\n");
-	printf("\t{\"/\", \"text/html\", tweak_static_index_html, sizeof(tweak_static_index_html)},\n"); /* hack for directory index alias */
+	write_entry("", "static/index.html");
 	for ( int i = 2; i < argc; i++ ){
-		const char* filename = strip_prefix(argv[i]);
-		const char* varname = mangle_filename(filename);
-		const char* mime = magic_file(magic, argv[i]);
-		printf("\t{\"/%s\", \"%s\", tweak_static_%s, sizeof(tweak_static_%s)},\n", filename, mime, varname, varname);
+		write_entry(argv[i], argv[i]);
 	}
 	printf("\t{NULL, NULL, NULL, 0},\n"); /* sentinel */
 	printf("};\n");
-
-	magic_close(magic);
 }
