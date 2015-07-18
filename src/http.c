@@ -28,6 +28,16 @@ void header_add(struct header_list* hdr, const char* key, const char* value){
 	hdr->num_elem++;
 }
 
+struct header* header_begin(struct header_list* hdr){
+	if ( hdr->num_elem == 0 ) return NULL;
+	return &hdr->kv[0];
+}
+
+struct header* header_end(struct header_list*hdr){
+	if ( hdr->num_elem == 0 ) return NULL;
+	return &hdr->kv[hdr->num_elem];
+}
+
 static int http_valid_protocol(http_request_t req, const char* protocol){
 	/** @todo validate protocol version */
 	return 1;
@@ -70,7 +80,8 @@ static int http_parse_header(http_request_t req, char* line){
 
 	char* c = NULL;
 	char* key = strtok_r(line, ": ", &c);
-	char* value = strtok_r(line, "\r\n", &c);
+	char* value = strtok_r(NULL, "\r\n", &c);
+	while ( value[0] == 32 ) value++; /* trim leading spaces */
 	if ( key && value ){
 		header_add(&req->header, key, value);
 	}

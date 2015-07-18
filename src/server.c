@@ -136,14 +136,16 @@ static void write_error(int sd, http_request_t req, http_response_t resp, int co
 	http_response_write_chunk(sd, NULL, 0);
 }
 
-static void handle_socket(int sd, const http_request_t req, http_response_t resp){
-
+static void handle_websocket(int sd, const http_request_t req, http_response_t resp){
+	for ( struct header* hdr = header_begin(&req->header); hdr != header_end(&req->header); hdr++ ){
+		logmsg("%s: %s\n", hdr->key, hdr->value);
+	}
 }
 
 static void handle_get(int sd, const http_request_t req, http_response_t resp){
 	/* handle actual websocket */
 	if ( strcmp(req->url, "/socket") == 0 ){
-		handle_socket(sd, req, resp);
+		handle_websocket(sd, req, resp);
 		return;
 	}
 
