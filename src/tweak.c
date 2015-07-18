@@ -15,7 +15,7 @@ void tweak_init_args(int port, const char* addr, int argc, char* argv[]){
 }
 
 void tweak_cleanup(){
-
+	server_cleanup();
 }
 
 void tweak_output(tweak_output_func callback){

@@ -11,8 +11,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <signal.h>
 #include <pthread.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -23,27 +25,42 @@
 #include <openssl/bio.h>
 #include <openssl/evp.h>
 
-static int sd = -1;
-static pthread_t thread;
-static const size_t buffer_size = 16384;
-
-struct client {
+struct worker {
 	pthread_t thread;
+	int pipe[2];
 	int sd;
 };
+
+enum {
+	READ_FD = 0,
+	WRITE_FD = 1,
+};
+
+enum IPC {
+	IPC_SHUTDOWN = 1,
+};
+
+static struct worker server = {0, {0,0}, -1};
+static const size_t buffer_size = 16384;
 
 static void* server_loop(void*);
 static void* client_loop(void*);
 
 void server_init(int port, const char* listen_addr){
 	/* make sure server isn't initailzed twice */
-	if ( sd != -1 ){
+	if ( server.sd != -1 ){
 		logmsg("cannot start multiple server instances\n");
 		return;
 	}
 
+	/* IPC pipe */
+	if ( pipe2(server.pipe, O_NONBLOCK) != 0 ){
+		logmsg("pipe2() failed: %s\n", strerror(errno));
+		return;
+	}
+
 	/* open socket */
-	if ( (sd=socket(AF_INET, SOCK_STREAM, 0)) == -1 ){
+	if ( (server.sd=socket(AF_INET, SOCK_STREAM, 0)) == -1 ){
 		logmsg("Failed to open socket: %s\n", strerror(errno));
 		return;
 	}
@@ -51,7 +68,7 @@ void server_init(int port, const char* listen_addr){
 	/* enable reusing address, in many cases when tweaklib is used the user
 	 * application is still restarted frequently. */
 	int on = 1;
-	if ( setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(int)) != 0 ){
+	if ( setsockopt(server.sd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(int)) != 0 ){
 		logmsg("Failed to set SO_REUSEADDR: %s\n", strerror(errno));
 	}
 
@@ -63,20 +80,20 @@ void server_init(int port, const char* listen_addr){
 		logmsg("inet_pton() failed: invalid address\n");
 		goto error;
 	}
-	if ( bind(sd, (struct sockaddr *)&addr, sizeof(addr)) < 0 ){
+	if ( bind(server.sd, (struct sockaddr *)&addr, sizeof(addr)) < 0 ){
 		logmsg("bind() failed: %s\n", strerror(errno));
 		goto error;
 	}
 
 	/* allow incoming connections */
-	if ( listen(sd, 5) != 0 ){
+	if ( listen(server.sd, 5) != 0 ){
 		logmsg("listen() failed: %s\n", strerror(errno));
 		goto error;
 	}
 
 	/* create listening thread */
 	int error;
-	if ( (error=pthread_create(&thread, NULL, server_loop, NULL)) != 0 ){
+	if ( (error=pthread_create(&server.thread, NULL, server_loop, NULL)) != 0 ){
 		logmsg("pthread_create() failed: %s\n", strerror(error));
 		goto error;
 	}
@@ -85,15 +102,64 @@ void server_init(int port, const char* listen_addr){
 	return;
 
   error:
-	close(sd);
-	sd = -1;
+	close(server.sd);
+	server.sd = -1;
+}
+
+void server_cleanup(){
+	const enum IPC command = IPC_SHUTDOWN;
+	if ( write(server.pipe[WRITE_FD], &command, sizeof(command)) == -1 ){
+		logmsg("write() failed: %s\n", strerror(errno));
+	}
+
+	/* wait for server shutdown */
+	pthread_join(server.thread, NULL);
+}
+
+static int max(int a, int b){
+	return (a>b) ? a : b;
 }
 
 static void* server_loop(void* arg){
-	do {
+	const int max_fd = max(server.sd, server.pipe[0])+1;
+	int running = 1;
+
+	while (running) {
+		fd_set fds;
+		FD_ZERO(&fds);
+		FD_SET(server.sd, &fds);
+		FD_SET(server.pipe[0], &fds);
+
+		if ( select(max_fd, &fds, NULL, NULL, NULL) == -1 ){
+			logmsg("select() failed: %s\n", strerror(errno));
+			continue;
+		}
+
+		/* handle IPC */
+		if ( FD_ISSET(server.pipe[READ_FD], &fds) ){
+			enum IPC command;
+			if ( read(server.pipe[READ_FD], &command, sizeof(command)) == -1 ){
+				logmsg("read() failed: %s\n", strerror(errno));
+				continue;
+			}
+
+			logmsg("IPC command %d received\n", command);
+
+			switch ( command ){
+			case IPC_SHUTDOWN:
+				running = 0;
+				break;
+
+			default:
+				logmsg("Unknown IPC command %d ignored.\n", command);
+			}
+
+			continue;
+		}
+
 		/* wait for a client to connect */
 		int cd;
-		if ( (cd=accept(sd, NULL, NULL)) == -1 ){
+		if ( (cd=accept(server.sd, NULL, NULL)) == -1 ){
 			logmsg("accept() failed: %s\n", strerror(errno));
 			break;
 		}
@@ -101,7 +167,7 @@ static void* server_loop(void* arg){
 		logmsg("client connected\n");
 
 		/* allocate state, freed by client loop */
-		struct client* client = (struct client*)malloc(sizeof(struct client));
+		struct worker* client = (struct worker*)malloc(sizeof(struct worker));
 		if ( !client ){
 			logmsg("malloc() failed: %s\n", strerror(errno));
 			shutdown(cd, SHUT_RDWR);
@@ -115,11 +181,11 @@ static void* server_loop(void* arg){
 			logmsg("pthread_create() failed: %s\n", strerror(error));
 			shutdown(cd, SHUT_RDWR);
 		}
-	} while (1);
+	};
 
 	/* close socket */
-	shutdown(sd, SHUT_RDWR);
-	sd = -1;
+	shutdown(server.sd, SHUT_RDWR);
+	server.sd = -1;
 
 	return NULL;
 }
@@ -228,7 +294,7 @@ static void handle_post(int sd, const http_request_t req, http_response_t resp){
 }
 
 void* client_loop(void* ptr){
-	struct client* client = (struct client*)ptr;
+	struct worker* client = (struct worker*)ptr;
 	char* buf = malloc(buffer_size);
 
 	for (;;){
