@@ -8,6 +8,7 @@
 #include "static.h"
 
 #include <errno.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
@@ -115,7 +116,33 @@ static void* server_loop(void* arg){
 	return NULL;
 }
 
+static void write_error(int sd, http_request_t req, http_response_t resp, int code){
+	const char* message = http_status_description(code);
+	char* html = NULL;
+	if ( asprintf(&html, "<h1>%d: %s</h1>", code, message) == -1 ){
+		html = NULL;
+	}
+
+	header_add(&resp->header, "Content-Type", "text/html");
+	http_response_status(resp, 404, message);
+	http_response_write_header(sd, req, resp);
+	if ( html ){
+		http_response_write_chunk(sd, html, strlen(html));
+	}
+	http_response_write_chunk(sd, NULL, 0);
+}
+
+static void handle_socket(int sd, const http_request_t req, http_response_t resp){
+
+}
+
 static void handle_get(int sd, const http_request_t req, http_response_t resp){
+	/* handle actual websocket */
+	if ( strcmp(req->url, "/socket") == 0 ){
+		handle_socket(sd, req, resp);
+		return;
+	}
+
 	/* handle static files */
 	struct file_entry* entry = file_table;
 	while ( entry->filename ){
@@ -125,8 +152,8 @@ static void handle_get(int sd, const http_request_t req, http_response_t resp){
 		}
 
 		/* static file found, send it */
-		resp->status = "HTTP/1.1 200 OK";
 		header_add(&resp->header, "Content-Type", entry->mime);
+		http_response_status(resp, 200, "OK");
 		http_response_write_header(sd, req, resp);
 		http_response_write_chunk(sd, entry->data, entry->bytes);
 		http_response_write_chunk(sd, NULL, 0);
@@ -134,12 +161,7 @@ static void handle_get(int sd, const http_request_t req, http_response_t resp){
 	}
 
 	/* nothing found, 404 */
-	const char* error = "<h1>404: Not Found</h1>";
-	resp->status = "HTTP/1.1 404 Not Found";
-	header_add(&resp->header, "Content-Type", "text/html");
-	http_response_write_header(sd, req, resp);
-	http_response_write_chunk(sd, error, strlen(error));
-	http_response_write_chunk(sd, NULL, 0);
+	write_error(sd, req, resp, 404);
 }
 
 static void handle_post(int sd, const http_request_t req, http_response_t resp){
@@ -186,6 +208,11 @@ void* client_loop(void* ptr){
 		case HTTP_POST:
 			handle_post(client->sd, &req, &resp);
 			break;
+		}
+
+		/* ensure request was handled in some way */
+		if ( req.status == 0 ){
+			write_error(client->sd, &req, &resp, 404);
 		}
 
 		/* free resources allocated for this request */

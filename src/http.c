@@ -66,7 +66,6 @@ static int http_parse_request(http_request_t req, char* line){
 
 static int http_parse_header(http_request_t req, char* line){
 	if ( !line ) return 0;
-	logmsg("header: %s\n", line);
 
 	char* c = NULL;
 	char* key = strtok_r(line, ": ", &c);
@@ -113,6 +112,7 @@ void http_response_init(http_response_t resp){
 void http_response_free(http_response_t resp){
 	free(resp->header.kv);
 	free(resp->body);
+	free(resp->statusline);
 }
 
 const char* method_str(enum http_method method){
@@ -123,10 +123,26 @@ const char* method_str(enum http_method method){
 	return "UNKNOWN";
 }
 
-void http_response_write_header(int sd, http_request_t req, http_response_t resp){
-	logmsg("%s %s -> %s\n", method_str(req->method), req->url, resp->status);
+const char* http_status_description(int code){
+	switch ( code ){
+	case 404: return "Not Found";
+	case 500: return "Internal Server Error";
+	default: return "Invalid status";
+	}
+}
 
-	send(sd, resp->status, strlen(resp->status), MSG_MORE);
+void http_response_status(http_response_t resp, int code, const char* msg){
+	resp->statuscode = code;
+	if ( asprintf(&resp->statusline, "HTTP/1.1 %d %s", code, msg) == -1 ){
+		resp->statusline = strdup("HTTP/1.1 500 Internal Server Error");
+	}
+}
+
+void http_response_write_header(int sd, http_request_t req, http_response_t resp){
+	logmsg("%s %s -> %d\n", method_str(req->method), req->url, resp->statuscode);
+	req->status = resp->statuscode;
+
+	send(sd, resp->statusline, strlen(resp->statusline), MSG_MORE);
 	send(sd, "\r\n", 2, MSG_MORE);
 
 	for ( unsigned int i = 0; i < resp->header.num_elem; i++ ){

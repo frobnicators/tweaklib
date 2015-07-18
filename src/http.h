@@ -27,10 +27,12 @@ struct http_request {
 	enum http_method method;              /* HTTP method */
 	char* url;                            /* Request URL (can be NULL)*/
 	struct header_list header;            /* Request headers */
+	int status;                           /* If server has handled this request it is set to the reply status code */
 };
 
 struct http_response {
-	char* status;
+	int statuscode;
+	char* statusline;
 	struct header_list header;
 	char* body;
 };
@@ -48,8 +50,15 @@ int http_request_read(http_request_t req, char* buf, size_t bytes);
 void http_response_init(http_response_t resp);
 void http_response_free(http_response_t resp);
 
+void http_response_status(http_response_t resp, int code, const char* msg);
 void http_response_write_header(int sd, http_request_t req, http_response_t resp);
 void http_response_write_chunk(int sd, const char* data, size_t bytes);
+
+/**
+ * Returns textual description of a HTTP status code, e.g. 404 -> "Not Found"
+ * Return value is a pointer to static memory.
+ */
+const char* http_status_description(int code);
 
 #ifdef __cplusplus
 }
