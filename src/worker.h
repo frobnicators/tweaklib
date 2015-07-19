@@ -7,5 +7,6 @@ struct worker {
 	pthread_t thread;
 	int pipe[2];
 	int sd;
+	char* peeraddr;
 };
 #endif /* TWEAKLIB_WORKER_H */

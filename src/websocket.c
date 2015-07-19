@@ -137,12 +137,13 @@ static void websocket_hello(struct worker* client){
 
 void websocket_loop(struct worker* client){
 	char* buf = malloc(buffer_size);
+	int running = 1;
+
+	logmsg("%s - websocket opened\n", client->peeraddr);
 
 	websocket_hello(client);
 
-	for (;;){
-		logmsg("websocket waiting\n");
-
+	while (running){
 		/* wait for next request */
 		ssize_t bytes = recv(client->sd, buf, sizeof(struct frame_header), 0);
 		if ( bytes == -1 ){
@@ -182,10 +183,15 @@ void websocket_loop(struct worker* client){
 			logmsg("payload: %.*s\n", (int)payload_size, payload);
 			break;
 
+		case OPCODE_CLOSE:
+			running = 0;
+			break;
+
 		default:
 			logmsg("unhandled opcode %d\n", frame->opcode);
 		}
 	}
 
+	logmsg("%s - websocket closed\n", client->peeraddr);
 	free(buf);
 }

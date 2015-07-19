@@ -160,8 +160,6 @@ static void* server_loop(void* arg){
 			break;
 		}
 
-		logmsg("client connected\n");
-
 		/* allocate state, freed by client loop */
 		struct worker* client = (struct worker*)malloc(sizeof(struct worker));
 		if ( !client ){
@@ -170,6 +168,9 @@ static void* server_loop(void* arg){
 			continue;
 		}
 		client->sd = cd;
+
+		char buf[PEER_ADDR_LEN];
+		client->peeraddr = strdup(peer_addr(cd, buf));
 
 		/* create thread for client */
 		int error;
@@ -200,6 +201,31 @@ static void write_error(int sd, http_request_t req, http_response_t resp, int co
 		http_response_write_chunk(sd, html, strlen(html));
 	}
 	http_response_write_chunk(sd, NULL, 0);
+}
+
+const char* peer_addr(int sd, char buf[PEER_ADDR_LEN]){
+	struct sockaddr_storage addr;
+	socklen_t len = sizeof(struct sockaddr_storage);
+	if ( getpeername(sd, (struct sockaddr*)&addr, &len) != 0 ){
+		fprintf(stderr, "case 1\n");
+		return "-";
+	}
+
+	const char* r = NULL;
+
+	switch ( addr.ss_family ){
+	case AF_INET:
+		r = inet_ntop(addr.ss_family, &((struct sockaddr_in*)&addr)->sin_addr, buf, sizeof(struct sockaddr_in));
+		break;
+	case AF_INET6:
+		r = inet_ntop(addr.ss_family, &((struct sockaddr_in6*)&addr)->sin6_addr, buf, sizeof(struct sockaddr_in6));
+		break;
+	}
+
+	if ( !r ){
+		fprintf(stderr, "case 2\n");
+	}
+	return r ? r : "-";
 }
 
 static const char* websocket_derive_key(const char* key){
@@ -311,6 +337,8 @@ void* client_loop(void* ptr){
 	struct worker* client = (struct worker*)ptr;
 	char* buf = malloc(buffer_size);
 
+	logmsg("%s - client connected\n", client->peeraddr);
+
 	for (;;){
 		/* wait for next request */
 		ssize_t bytes = recv(client->sd, buf, buffer_size-1, 0); /* -1 so null terminator will fit */
@@ -318,7 +346,7 @@ void* client_loop(void* ptr){
 			logmsg("recv() failed: %s\n", strerror(errno));
 			break;
 		} else if ( bytes == 0 ){
-			logmsg("connection closed\n");
+			logmsg("%s - connection closed\n", client->peeraddr);
 			break;
 		}
 
@@ -362,6 +390,7 @@ void* client_loop(void* ptr){
 
 	/* close client connection */
 	shutdown(client->sd, SHUT_RDWR);
+	free(client->peeraddr);
 	free(client);
 	return NULL;
 }
