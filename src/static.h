@@ -8,10 +8,11 @@ extern "C" {
 #endif
 
 struct file_entry {
-	const char* filename;
-	const char* mime;
-	const char* data;
-	size_t bytes;
+	const char* filename;                           /* filename entry (virtaul path) */
+	const char* original;                           /* original filanem (on disk, relative to build directory) */
+	const char* mime;                               /* mimetype */
+	const char* data;                               /* raw data */
+	size_t bytes;                                   /* file size */
 };
 
 extern struct file_entry file_table[];

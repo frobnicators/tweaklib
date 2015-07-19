@@ -280,7 +280,21 @@ static void handle_get(struct worker* client, const http_request_t req, http_res
 		header_add(&resp->header, "Content-Type", entry->mime);
 		http_response_status(resp, 200, "OK");
 		http_response_write_header(client->sd, req, resp, 0);
-		http_response_write_chunk(client->sd, entry->data, entry->bytes);
+
+		/* check if a local (non-builtin) file is present. */
+		FILE* fp = fopen(entry->original, "r");
+		if ( fp ){
+			/* local file found, using it instead of builtin (helps during development) */
+			char buf[4096];
+			size_t bytes;
+			while ( (bytes=fread(buf, 1, sizeof(buf), fp)) > 0 ){
+				http_response_write_chunk(client->sd, buf, bytes);
+			}
+		} else {
+			/* no local file, use builtin version */
+			http_response_write_chunk(client->sd, entry->data, entry->bytes);
+		}
+
 		http_response_write_chunk(client->sd, NULL, 0);
 		return;
 	}

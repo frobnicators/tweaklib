@@ -53,7 +53,7 @@ static void write_entry(const char* src, const char* dst){
 	const char* filename = strip_prefix(src);
 	const char* varname = mangle_filename(strip_prefix(dst));
 	const char* mime = mimetype(dst);
-	printf("\t{\"/%s\", \"%s\", tweak_static_%s, sizeof(tweak_static_%s)-1},\n", filename, mime, varname, varname);
+	printf("\t{\"/%s\", \"%s\", \"%s\", tweak_static_%s, sizeof(tweak_static_%s)-1},\n", filename, dst, mime, varname, varname);
 }
 
 int main(int argc, const char* argv[]){
