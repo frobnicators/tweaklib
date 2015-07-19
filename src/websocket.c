@@ -3,7 +3,9 @@
 #endif
 
 #include "websocket.h"
+#include "list.h"
 #include "log.h"
+#include "vars.h"
 
 #include <stdio.h>
 #include <stdint.h>
@@ -12,8 +14,10 @@
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <json.h>
 
 static const size_t buffer_size = 16384;
+extern list_t vars;
 
 struct frame_header {
 #if __BYTE_ORDER == __LITTLE_ENDIAN
@@ -113,7 +117,7 @@ static int min(int a, int b){
 	return (a<b) ? a : b;
 }
 
-static void websocket_send(struct worker* client, char* buffer, size_t len){
+static void websocket_send(struct worker* client, const char* buffer, size_t len){
 	/* setup frame */
 	struct frame_header frame;
 	frame.fin = 1;
@@ -132,7 +136,22 @@ static void websocket_send(struct worker* client, char* buffer, size_t len){
 }
 
 static void websocket_hello(struct worker* client){
-	websocket_send(client, "derp", 4);
+	struct json_object* json_vars = json_object_new_array();
+	for ( void** it = list_begin(vars); it != list_end(vars); it++ ){
+		struct var* var = *(struct var**)it;
+		struct json_object* json_var = json_object_new_object();
+		json_object_object_add(json_var, "name", json_object_new_string(var->name));
+		json_object_object_add(json_var, "description", NULL);
+		json_object_object_add(json_var, "datatype", json_object_new_int(var->datatype));
+		json_object_array_add(json_vars, json_var);
+	}
+
+	struct json_object* root = json_object_new_object();
+	json_object_object_add(root, "vars", json_vars);
+	json_object_object_add(root, "type", json_object_new_string("hello"));
+
+	const char* data = json_object_to_json_string_ext(root, 0);
+	websocket_send(client, data, strlen(data));
 }
 
 void websocket_loop(struct worker* client){
