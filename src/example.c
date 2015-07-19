@@ -32,8 +32,6 @@ int main(int argc, const char* argv[]){
 	tweak_init(8080, 0);
 	tweak_int("foo", &foo);
 
-	malloc(50);
-
 	signal(SIGINT, sighandler);
 
 	while (running) {

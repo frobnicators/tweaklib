@@ -6,6 +6,8 @@
 #include "log.h"
 #include "http.h"
 #include "static.h"
+#include "websocket.h"
+#include "worker.h"
 
 #include <errno.h>
 #include <stdio.h>
@@ -25,12 +27,6 @@
 #include <openssl/bio.h>
 #include <openssl/evp.h>
 
-struct worker {
-	pthread_t thread;
-	int pipe[2];
-	int sd;
-};
-
 enum {
 	READ_FD = 0,
 	WRITE_FD = 1,
@@ -45,7 +41,6 @@ static const size_t buffer_size = 16384;
 
 static void* server_loop(void*);
 static void* client_loop(void*);
-static void websocket_loop(struct worker* worker);
 
 void server_init(int port, const char* listen_addr){
 	/* make sure server isn't initailzed twice */
@@ -296,28 +291,6 @@ static void handle_get(struct worker* client, const http_request_t req, http_res
 
 static void handle_post(struct worker* client, const http_request_t req, http_response_t resp){
 
-}
-
-void websocket_loop(struct worker* client){
-	char* buf = malloc(buffer_size);
-
-	for (;;){
-		logmsg("websocket waiting\n");
-
-		/* wait for next request */
-		ssize_t bytes = recv(client->sd, buf, buffer_size-1, 0); /* -1 so null terminator will fit */
-		if ( bytes == -1 ){
-			logmsg("recv() failed: %s\n", strerror(errno));
-			break;
-		} else if ( bytes == 0 ){
-			logmsg("connection closed\n");
-			break;
-		}
-
-		logmsg("websocket received %d bytes\n", (int)bytes);
-	}
-
-	free(buf);
 }
 
 void* client_loop(void* ptr){
