@@ -23,11 +23,11 @@ struct frame_header {
 	uint8_t plen1:7;
 	uint8_t mask:1;
 #elif __BYTE_ORDER == __BIG_ENDIAN
-	uint8_t fin:1;
-	uint8_t res:3;
-	uint8_t opcode:4;
-	uint8_t mask:1;
-	uint8_t plen1:7;
+	uint8_t fin:1;                                       /* final fragment: if 0 the frame is fragmented */
+	uint8_t res:3;                                       /* reserved */
+	uint8_t opcode:4;                                    /* control codes, see enum */
+	uint8_t mask:1;                                      /* payload masked, if 1 the masking key is present and payload must be decoded */
+	uint8_t plen1:7;                                     /* payload length (for small sizes) */
 #endif
 } __attribute__((packed));
 
@@ -109,8 +109,36 @@ static char* websocket_frame_payload(int sd, char* ptr, size_t left, uint32_t ma
 	return ptr;
 }
 
+static int min(int a, int b){
+	return (a<b) ? a : b;
+}
+
+static void websocket_send(struct worker* client, char* buffer, size_t len){
+	/* setup frame */
+	struct frame_header frame;
+	frame.fin = 1;
+	frame.res = 0;
+	frame.opcode = OPCODE_TEXT;
+	frame.mask = 0;
+	frame.plen1 = min(len,126);
+	uint16_t plen = htobe16(len);
+
+	/* send frame */
+	send(client->sd, &frame, sizeof(struct frame_header), MSG_MORE);
+	if ( len >= 126 ){
+		send(client->sd, &plen, sizeof(uint16_t), MSG_MORE);
+	}
+	send(client->sd, buffer, len, 0);
+}
+
+static void websocket_hello(struct worker* client){
+	websocket_send(client, "derp", 4);
+}
+
 void websocket_loop(struct worker* client){
 	char* buf = malloc(buffer_size);
+
+	websocket_hello(client);
 
 	for (;;){
 		logmsg("websocket waiting\n");
@@ -127,6 +155,12 @@ void websocket_loop(struct worker* client){
 
 		const struct frame_header* frame = (const struct frame_header*)buf;
 		char* ptr = buf + sizeof(struct frame_header);
+
+		/* fragmentation */
+		if ( !frame->fin ){
+			logmsg("Fragmented frames is not supported yet.\n");
+			continue;
+		}
 
 		/* read frame size */
 		size_t payload_size;

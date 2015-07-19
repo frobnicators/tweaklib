@@ -4,5 +4,8 @@ var tweaklib = (function(){
 		console.log('opened', event);
 		socket.send('test');
 	};
+	socket.onmessage = function(event){
+		console.log('message', event.data);
+	};
 	console.log(socket);
 })();
