@@ -33,7 +33,7 @@ var tweaklib = (function(){
 				var value = $(this).val();
 				socket.send(JSON.stringify({
 					type: 'update',
-					name: key,
+					handle: item.handle,
 					value: value,
 				}));
 			});

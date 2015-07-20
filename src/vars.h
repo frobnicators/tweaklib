@@ -23,5 +23,7 @@ struct var {
 extern list_t vars;
 
 struct var* var_create(const char* name, size_t size, void* ptr, datatype_t datatype);
+tweak_handle var_add(struct var* var);
+struct var* var_from_handle(tweak_handle handle);
 
 #endif /* TWEAKLIB_VARS_H */

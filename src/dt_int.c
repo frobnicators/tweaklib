@@ -23,6 +23,5 @@ tweak_handle tweak_int(const char* name, int* ptr){
 	struct var* var = var_create(name, sizeof(int), ptr, DATATYPE_INTEGER);
 	var->store = store_int;
 	var->load = load_int;
-	list_push(vars, var);
-	return 0;
+	return var_add(var);
 }

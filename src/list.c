@@ -47,7 +47,8 @@ void list_free(list_t list){
 
 int list_push(list_t list, void* elem){
 	if ( list->num_elements >= list->num_allocated ){
-		list_realloc(list, list->num_elements + list_grow);
+		list->num_allocated += list_grow;
+		list_realloc(list, sizeof(void*) * list->num_allocated);
 	}
 
 	const int index = list->num_elements;
