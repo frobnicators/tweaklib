@@ -159,6 +159,47 @@ static void websocket_hello(struct worker* client){
 	websocket_send(client, data, strlen(data));
 }
 
+static void handle_update(struct json_object* json){
+	struct json_object* handle;
+	struct json_object* value;
+
+	if ( !json_object_object_get_ex(json, "handle", &handle) ){
+		logmsg("update missing handle\n");
+		return;
+	}
+
+	if ( !json_object_object_get_ex(json, "value", &value) ){
+		logmsg("update missing value\n");
+		return;
+	}
+
+	struct var* var = var_from_handle(json_object_get_int(handle));
+	if ( var ){
+		var->load(var, value);
+	}
+}
+
+static void handle_message(struct worker* client, const char* data){
+	struct json_object* json = json_tokener_parse	(data);
+	if ( !json ){
+		logmsg("Failed to parse JSON\n");
+		return;
+	}
+
+	struct json_object* type;
+	if ( !json_object_object_get_ex(json, "type", &type) ){
+		logmsg("message missing type\n");
+		return;
+	}
+
+	const char* type_str = json_object_get_string(type);
+	if ( strcmp(type_str, "update") == 0 ){
+		handle_update(json);
+	} else {
+		logmsg("unhandled message type %s\n", type_str);
+	}
+}
+
 void websocket_loop(struct worker* client){
 	char* buf = malloc(buffer_size);
 	int running = 1;
@@ -196,7 +237,7 @@ void websocket_loop(struct worker* client){
 		ptr = websocket_frame_masking_key(client->sd, ptr, frame, &masking_key);
 
 		/* read full payload */
-		const char* payload = ptr;
+		char* payload = ptr;
 		if ( (ptr=websocket_frame_payload(client->sd, ptr, payload_size, masking_key)) == NULL ){
 			logmsg("Failed to receive payload");
 			continue;
@@ -204,7 +245,11 @@ void websocket_loop(struct worker* client){
 
 		switch ( frame->opcode ){
 		case OPCODE_TEXT:
-			logmsg("payload: %.*s\n", (int)payload_size, payload);
+			/* add null-terminator */
+			payload[payload_size] = 0;
+
+			logmsg("payload: %s\n", payload);
+			handle_message(client, payload);
 			break;
 
 		case OPCODE_CLOSE:
