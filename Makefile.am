@@ -10,7 +10,16 @@ nobase_include_HEADERS = tweak/tweak.h tweak/version.h
 libtweak_la_LIBADD = -lcrypto ${json_LIBS}
 libtweak_la_LDFLAGS = -version-info 0:0:0
 libtweak_la_CFLAGS = ${AM_CFLAGS} ${json_CFLAGS}
-libtweak_la_SOURCES = src/tweak.c src/http.c src/http.h src/server.c src/server.h src/log.c src/log.h src/static.c src/websocket.c src/websocket.h src/worker.h src/list.c src/list.h
+libtweak_la_SOURCES = \
+	src/dt_int.c \
+	src/http.c src/http.h \
+	src/list.c src/list.h \
+	src/log.c src/log.h \
+	src/server.c src/server.h \
+	src/static.c src/static.h \
+	src/tweak.c \
+	src/websocket.c src/websocket.h \
+	src/worker.h
 
 example_LDADD = libtweak.la
 example_LDFLAGS = -pthread

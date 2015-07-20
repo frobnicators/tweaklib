@@ -22,4 +22,6 @@ struct var {
 
 extern list_t vars;
 
+struct var* var_create(const char* name, size_t size, void* ptr, datatype_t datatype);
+
 #endif /* TWEAKLIB_VARS_H */
