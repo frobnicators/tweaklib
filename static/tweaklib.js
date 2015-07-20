@@ -20,7 +20,8 @@ var tweaklib = (function(){
 		var field = null;
 		switch ( item.datatype ){
 		case DATATYPE_INTEGER:
-			field = $('<input type="number" value="0" class="form-control" />');
+			field = $('<input type="number" class="form-control" />');
+			field.val(item.value);
 			break;
 
 		default:

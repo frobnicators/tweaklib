@@ -135,19 +135,23 @@ static void websocket_send(struct worker* client, const char* buffer, size_t len
 	send(client->sd, buffer, len, 0);
 }
 
-static void websocket_hello(struct worker* client){
+static struct json_object* serialize_vars(){
 	struct json_object* json_vars = json_object_new_array();
 	for ( void** it = list_begin(vars); it != list_end(vars); it++ ){
 		struct var* var = *(struct var**)it;
 		struct json_object* json_var = json_object_new_object();
 		json_object_object_add(json_var, "name", json_object_new_string(var->name));
-		json_object_object_add(json_var, "description", NULL);
+		json_object_object_add(json_var, "description", var->description ? json_object_new_string(var->description) : NULL);
 		json_object_object_add(json_var, "datatype", json_object_new_int(var->datatype));
+		json_object_object_add(json_var, "value", var->store(var));
 		json_object_array_add(json_vars, json_var);
 	}
+	return json_vars;
+}
 
+static void websocket_hello(struct worker* client){
 	struct json_object* root = json_object_new_object();
-	json_object_object_add(root, "vars", json_vars);
+	json_object_object_add(root, "vars", serialize_vars());
 	json_object_object_add(root, "type", json_object_new_string("hello"));
 
 	const char* data = json_object_to_json_string_ext(root, 0);

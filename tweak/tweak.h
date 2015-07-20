@@ -28,6 +28,8 @@ tweak_handle tweak_int(const char* name, int* ptr);
 
 void tweak_trigger(tweak_handle handle, tweak_callback callback);
 
+void tweak_description(tweak_handle handle, const char* description);
+
 void tweak_options(tweak_handle handle, const char* json);
 
 #ifdef __cplusplus
