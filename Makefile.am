@@ -1,5 +1,5 @@
 ACLOCAL_AMFLAGS = -I m4
-AM_CFLAGS = -Wall -Wcast-qual -fvisibility=hidden
+AM_CFLAGS = -Wall -Wcast-qual -fvisibility=hidden -I${top_srcdir}/src
 BUILT_SOURCES = src/static.c
 
 lib_LTLIBRARIES = libtweak.la
