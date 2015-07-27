@@ -25,8 +25,12 @@ AC_DEFINE([TWEAKLIB_EXPORT], [1], [Export symbols from library])
 
 AC_DEFINE_UNQUOTED([srcdir], ["${srcdir}/"], [srcdir])
 
+AM_PATH_CPPUNIT(1.9.6,,[AC_MSG_NOTICE([cppunit not found, tests disabled])])
+AM_CONDITIONAL([BUILD_TESTS], [test "x$no_cppunit" != "xyes"])
+
 AM_PROG_CC_C_O
 AC_PROG_CC_C99
+AC_PROG_CXX
 AC_USE_SYSTEM_EXTENSIONS
 LT_INIT
 

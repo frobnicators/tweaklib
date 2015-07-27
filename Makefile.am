@@ -1,5 +1,6 @@
 ACLOCAL_AMFLAGS = -I m4
 AM_CFLAGS = -Wall -Wcast-qual -fvisibility=hidden -I${top_srcdir}/src
+AM_CXXFLAGS = ${AM_CFLAGS}
 BUILT_SOURCES = src/static.c
 
 lib_LTLIBRARIES = libtweak.la
@@ -8,7 +9,7 @@ noinst_PROGRAMS = example pack
 nobase_include_HEADERS = tweak/tweak.h tweak/version.h
 
 libtweak_la_LIBADD = -lcrypto ${json_LIBS}
-libtweak_la_LDFLAGS = -version-info 0:0:0
+libtweak_la_LDFLAGS = -version-info 0:0:0 -pthread
 libtweak_la_CFLAGS = ${AM_CFLAGS} ${json_CFLAGS}
 libtweak_la_SOURCES = \
 	src/dt_int.c \
@@ -29,3 +30,15 @@ pack_SOURCES = src/pack.c
 
 src/static.c: pack static/index.html static/tweaklib.js static/style.css
 	$(AM_V_GEN)./pack $^ > $@
+
+TESTS = tests/websocket
+check_PROGRAMS = ${TESTS}
+check_LIBRARIES = libtweak_test.a
+
+tests_websocket_SOURCES = tests/websocket.cpp src/websocket.c
+tests_websocket_CFLAGS = ${AM_CFLAGS} ${json_CFLAGS}
+tests_websocket_LDADD = $(CPPUNIT_LIBS) libtweak_test.a ${libtweak_la_LIBADD}
+tests_websocket_LDFLAGS = -pthread
+
+libtweak_test_a_SOURCES = ${libtweak_la_SOURCES}
+libtweak_test_a_CFLAGS = ${libtweak_la_CFLAGS}

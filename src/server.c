@@ -228,7 +228,7 @@ const char* peer_addr(int sd, char buf[PEER_ADDR_LEN]){
 	return r ? r : "-";
 }
 
-static const char* websocket_derive_key(const char* key){
+const char* websocket_derive_key(const char* key){
 	static unsigned char hash[SHA_DIGEST_LENGTH];
 	static char hex[512] = {0,};
 	static char magic[] = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";

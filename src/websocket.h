@@ -8,6 +8,7 @@ extern "C" {
 #endif
 
 void websocket_loop(struct worker* client);
+const char* websocket_derive_key(const char* key);
 
 #ifdef __cplusplus
 }
