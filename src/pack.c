@@ -7,11 +7,16 @@
 #include <ctype.h>
 
 static const char* strip_prefix(const char* filename){
-	if ( strncmp(filename, "static/", 7) == 0 ){
-		return filename+7;
-	} else {
-		return filename;
+	if ( strncmp(filename, srcdir, strlen(srcdir)) == 0 ){
+		filename += strlen(srcdir);
 	}
+
+	static const char* prefix = "static/";
+	if ( strncmp(filename, prefix, strlen(prefix)) == 0 ){
+		filename += strlen(prefix);
+	}
+
+	return filename;
 }
 
 static const char* mangle_filename(const char* filename){
@@ -86,7 +91,7 @@ int main(int argc, const char* argv[]){
 
 	/* file table */
 	printf("struct file_entry file_table[] = {\n");
-	write_entry("", "static/index.html");
+	write_entry("", srcdir "static/index.html");
 	for ( int i = 2; i < argc; i++ ){
 		write_entry(argv[i], argv[i]);
 	}

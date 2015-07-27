@@ -23,6 +23,8 @@ AC_DEFINE_UNQUOTED([VERSION_MINOR],  [${VERSION_MINOR}], [Minor version number o
 AC_DEFINE_UNQUOTED([VERSION_MICRO],  [${VERSION_MICRO}], [Micro version number of package])
 AC_DEFINE([TWEAKLIB_EXPORT], [1], [Export symbols from library])
 
+AC_DEFINE_UNQUOTED([srcdir], ["${srcdir}/"], [srcdir])
+
 AM_PROG_CC_C_O
 AC_PROG_CC_C99
 AC_USE_SYSTEM_EXTENSIONS
