@@ -16,6 +16,10 @@
 #include <sys/socket.h>
 #include <json.h>
 
+#include <openssl/sha.h>
+#include <openssl/bio.h>
+#include <openssl/evp.h>
+
 static const size_t buffer_size = 16384;
 extern list_t vars;
 
@@ -263,4 +267,33 @@ void websocket_loop(struct worker* client){
 
 	logmsg("%s - websocket closed\n", client->peeraddr);
 	free(buf);
+}
+
+const char* websocket_derive_key(const char* key){
+	static unsigned char hash[SHA_DIGEST_LENGTH];
+	static char hex[512] = {0,};
+	static char magic[] = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+
+	/* concaternate and hash */
+	SHA_CTX ctx;
+	SHA1_Init(&ctx);
+	SHA1_Update(&ctx, (const unsigned char*)key, strlen(key));
+	SHA1_Update(&ctx, (const unsigned char*)magic, strlen(magic));
+	SHA1_Final((unsigned char*)hash, &ctx);
+
+	/* encode hash as base64 */
+	BIO *b64 = BIO_new(BIO_f_base64()); // create BIO to perform base64
+	BIO *mem = BIO_new(BIO_s_mem()); // create BIO that holds the result
+	BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
+	BIO_push(b64, mem);
+	BIO_write(b64, hash, SHA_DIGEST_LENGTH);
+	BIO_flush(b64);
+
+	/* write copy into the static buffer */
+	unsigned char* output;
+	long bytes = BIO_get_mem_data(mem, &output);
+	snprintf(hex, sizeof(hex), "%.*s", (int)bytes, output);
+
+	BIO_free_all(b64);
+	return hex;
 }
