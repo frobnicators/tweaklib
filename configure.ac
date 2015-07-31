@@ -28,10 +28,11 @@ AC_DEFINE_UNQUOTED([srcdir], ["${srcdir}/"], [srcdir])
 AM_PATH_CPPUNIT(1.9.6,,[AC_MSG_NOTICE([cppunit not found, tests disabled])])
 AM_CONDITIONAL([BUILD_TESTS], [test "x$no_cppunit" != "xyes"])
 
+AC_USE_SYSTEM_EXTENSIONS
 AM_PROG_CC_C_O
 AC_PROG_CC_C99
+AC_C_BIGENDIAN
 AC_PROG_CXX
-AC_USE_SYSTEM_EXTENSIONS
 LT_INIT
 
 PKG_CHECK_MODULES([json], [json-c])

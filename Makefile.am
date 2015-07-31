@@ -19,6 +19,7 @@ libtweak_la_SOURCES = \
 	src/server.c src/server.h \
 	src/static.c src/static.h \
 	src/tweak.c \
+	src/utils/sha1.c src/utils/sha1.h \
 	src/websocket.c src/websocket.h \
 	src/worker.h
 
