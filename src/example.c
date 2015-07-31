@@ -28,8 +28,8 @@ static void output(const char* msg){
 	fprintf(stderr, "tweaklib: %s", msg);
 }
 
-static void update(const char* name, void* ptr){
-	fprintf(stderr, "The variable \"%s\" was updated.\n", name);
+static void update(tweak_handle handle){
+	fprintf(stderr, "The variable \"%s\" (%d) was updated.\n", tweak_get_name(handle), handle);
 }
 
 int main(int argc, const char* argv[]){

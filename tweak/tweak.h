@@ -10,7 +10,7 @@ extern "C" {
 #endif
 
 typedef unsigned int tweak_handle;
-typedef void(*tweak_callback)(const char* name, void* ptr);
+typedef void(*tweak_callback)(tweak_handle handle);
 typedef void(*tweak_output_func)(const char* str);
 
 void tweak_init(int port, const char* addr);
@@ -31,6 +31,8 @@ void tweak_trigger(tweak_handle handle, tweak_callback callback);
 void tweak_description(tweak_handle handle, const char* description);
 
 void tweak_options(tweak_handle handle, const char* json);
+
+const char* tweak_get_name(tweak_handle handle);
 
 #ifdef __cplusplus
 }

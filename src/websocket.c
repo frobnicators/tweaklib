@@ -178,6 +178,7 @@ static void handle_update(struct json_object* json){
 	struct var* var = var_from_handle(json_object_get_int(handle));
 	if ( var ){
 		var->load(var, value);
+		var->update(var->handle);
 	}
 }
 

@@ -43,8 +43,15 @@ void tweak_output(tweak_output_func callback){
 	log_output(callback);
 }
 
-void tweak_trigger(tweak_handle handle, tweak_callback callback){
+void default_trigger(tweak_handle handle){
+	/* do nothing */
+}
 
+void tweak_trigger(tweak_handle handle, tweak_callback callback){
+	struct var* var = var_from_handle(handle);
+	if ( var ){
+		var->update = callback;
+	}
 }
 
 void tweak_description(tweak_handle handle, const char* description){
@@ -57,6 +64,11 @@ void tweak_description(tweak_handle handle, const char* description){
 
 void tweak_options(tweak_handle handle, const char* json){
 
+}
+
+const char* tweak_get_name(tweak_handle handle){
+	struct var* var = var_from_handle(handle);
+	return var ? var->name : NULL;
 }
 
 tweak_handle var_add(struct var* var){
