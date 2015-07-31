@@ -5,6 +5,18 @@ var tweaklib = (function(){
 	var vars = {};
 	var id_key = 1;
 
+	function serialize(value, field){
+		var datatype = $(field).data('datatype');
+
+		switch ( datatype ){
+		case DATATYPE_INTEGER:
+			return parseInt(value);
+
+		default:
+			return value;
+		}
+	}
+
 	function render_var(key){
 		var item = vars[key];
 		if ( item.elem ) return;
@@ -14,7 +26,7 @@ var tweaklib = (function(){
 		item.elem.addClass('var-' + (id_key++));
 		item.elem.append('<h3>' + item.name + '</h3>');
 		if ( item.description ){
-			item.elem.find('h3').append('<small>' + item.description + '</small>');
+			item.elem.find('h3').append(' <small>' + item.description + '</small>');
 		}
 
 		var field = null;
@@ -27,6 +39,7 @@ var tweaklib = (function(){
 		default:
 			console.log('Unknown datatype', item.datatype);
 		}
+		field.data('datatype', item.datatype);
 
 		if ( field ){
 			field.change(function(){
@@ -34,7 +47,7 @@ var tweaklib = (function(){
 				socket.send(JSON.stringify({
 					type: 'update',
 					handle: item.handle,
-					value: value,
+					value: serialize(value, this),
 				}));
 			});
 			item.elem.append(field);
@@ -55,14 +68,11 @@ var tweaklib = (function(){
 		socket = new WebSocket("ws://localhost:8080/socket", "v1.tweaklib.sidvind.com");
 
 		socket.onopen = function(event){
-			console.log('opened', event);
-			socket.send('test');
 		};
 
 		socket.onmessage = function(event){
 			var data = JSON.parse(event.data);
 			console.log('message', data);
-			console.log(data.type);
 
 			if ( data.type === 'hello' ){
 				load_vars(data.vars);
