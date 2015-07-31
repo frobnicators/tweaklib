@@ -8,7 +8,7 @@ noinst_PROGRAMS = example pack
 
 nobase_include_HEADERS = tweak/tweak.h tweak/version.h
 
-libtweak_la_LIBADD = -lcrypto ${json_LIBS}
+libtweak_la_LIBADD = ${json_LIBS}
 libtweak_la_LDFLAGS = -version-info 0:0:0 -pthread
 libtweak_la_CFLAGS = ${AM_CFLAGS} ${json_CFLAGS}
 libtweak_la_SOURCES = \
@@ -19,6 +19,7 @@ libtweak_la_SOURCES = \
 	src/server.c src/server.h \
 	src/static.c src/static.h \
 	src/tweak.c \
+	src/utils/base64.c src/utils/base64.h \
 	src/utils/sha1.c src/utils/sha1.h \
 	src/websocket.c src/websocket.h \
 	src/worker.h
