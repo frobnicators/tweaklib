@@ -2,6 +2,7 @@ var tweaklib = (function(){
 	const DATATYPE_INTEGER = 0;
 	const STATUS_OK = 1;
 	const STATUS_FAILURE = 2;
+	const STATUS_CONNECTING = 3;
 
 	var socket = null;
 	var vars = {};
@@ -21,10 +22,17 @@ var tweaklib = (function(){
 
 	function render_var(key){
 		var item = vars[key];
-		if ( item.elem ) return;
+
+		if ( item.elem ){
+			/* only update value without recreating element */
+			/* @todo handle change of datatype */
+			item.field.val(item.value);
+			return;
+		}
 
 		item.elem = $('<div></div>');
 		item.elem.data('name', key);
+		item.elem.attr('data-name', key); /* for easier debugger with inspector */
 		item.elem.addClass('var-' + (id_key++));
 		item.elem.append('<h3>' + item.name + '</h3>');
 		if ( item.description ){
@@ -53,6 +61,7 @@ var tweaklib = (function(){
 				}));
 			});
 			item.elem.append(field);
+			item.field = field;
 		}
 
 		$('#vars').append(item.elem);
@@ -61,25 +70,45 @@ var tweaklib = (function(){
 	function load_vars(data){
 		for ( var key in data ){
 			var elem = data[key];
-			vars[elem.name] = elem;
+			vars[elem.name] = $.extend({}, vars[elem.name], elem);
 			render_var(elem.name);
 		}
 	}
 
 	function set_status(msg, type){
 		var status = $('#status');
-		status.html(msg);
+		var var_container = $('#vars');
+		status.html('<p>' + msg + '</p>');
 		status.removeClass('status-ok status-failure');
+		var_container.removeClass('failure');
 
 		switch (type){
 		case STATUS_OK:
-			status.addClass('status-ok'); break;
+			status.addClass('status-ok');
+			break;
 		case STATUS_FAILURE:
-			status.addClass('status-failure'); break;
+		case STATUS_CONNECTING:
+			status.addClass('status-failure');
+			var_container.addClass('failure');
+			break;
 		}
+
+		if ( type == STATUS_FAILURE ){
+			var button = $('<button class="btn btn-default">Reconnect</button>');
+			button.click(function(){
+				$(this).hide();
+				console.log(this);
+				console.log($(this));
+				set_status('Connecting', STATUS_CONNECTING);
+				init();
+			});
+			status.append(button);
+		}
+
 	}
 
 	function init(){
+		set_status('Connecting', STATUS_CONNECTING);
 		socket = new WebSocket("ws://localhost:8080/socket", "v1.tweaklib.sidvind.com");
 
 		socket.onopen = function(event){
@@ -88,6 +117,7 @@ var tweaklib = (function(){
 
 		socket.onerror = function(event){
 			console.log(event);
+			set_status('Disconnected', STATUS_FAILURE);
 		}
 
 		socket.onclose = function(event){
