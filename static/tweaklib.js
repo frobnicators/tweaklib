@@ -14,6 +14,10 @@ var tweaklib = (function(){
 		case DATATYPE_INTEGER:
 			return parseInt(value);
 
+		case DATATYPE_FLOAT:
+		case DATATYPE_DOUBLE:
+			return parseFloat(value);
+
 		default:
 			return value;
 		}
@@ -24,11 +28,16 @@ var tweaklib = (function(){
 
 		switch ( item.datatype ){
 		case DATATYPE_INTEGER:
+		case DATATYPE_FLOAT:
+		case DATATYPE_DOUBLE:
 			if ( 'min' in item.options ){
 				field.attr('min', item.options.min);
 			}
 			if ( 'max' in item.options ){
 				field.attr('max', item.options.max);
+			}
+			if ( 'step' in item.options ){
+				field.attr('step', item.options.step);
 			}
 			break;
 		}
@@ -56,8 +65,9 @@ var tweaklib = (function(){
 		var field = null;
 		switch ( item.datatype ){
 		case DATATYPE_INTEGER:
+		case DATATYPE_FLOAT:
+		case DATATYPE_INTEGER:
 			field = $('<input type="number" class="form-control" />');
-			field.val(item.value);
 			break;
 
 		default:
@@ -66,6 +76,7 @@ var tweaklib = (function(){
 
 		if ( field ){
 			field.data('datatype', item.datatype);
+			field.val(item.value);
 
 			apply_field_options(item, field);
 

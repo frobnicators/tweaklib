@@ -13,6 +13,7 @@ libtweak_la_LDFLAGS = -version-info 0:0:0 -pthread
 libtweak_la_CFLAGS = ${AM_CFLAGS} ${json_CFLAGS}
 libtweak_la_SOURCES = \
 	src/dt_int.c \
+	src/dt_float.c \
 	src/http.c src/http.h \
 	src/list.c src/list.h \
 	src/log.c src/log.h \

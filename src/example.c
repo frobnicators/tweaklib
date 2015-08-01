@@ -11,7 +11,7 @@
 #include <pthread.h>
 
 static int foo = 7;
-static int bar = 12;
+static float bar = 12;
 static int running = 1;
 
 void sighandler(int signum){
@@ -40,15 +40,15 @@ int main(int argc, const char* argv[]){
 	tweak_int("foo", &foo);
 
 	/* extra properties */
-	tweak_handle tl_bar = tweak_int("bar", &bar);
+	tweak_handle tl_bar = tweak_float("bar", &bar);
 	tweak_description(tl_bar, "Just some dummy value");
 	tweak_trigger(tl_bar, update);
-	tweak_options(tl_bar, "{\"min\": 5, \"max\": 35}"); /* json */
+	tweak_options(tl_bar, "{\"min\": 5, \"max\": 35, \"step\": 0.1}"); /* json */
 
 	signal(SIGINT, sighandler);
 
 	while (running) {
-		printf("foo: %d bar: %d\n", foo, bar);
+		printf("foo: %d bar: %.1f\n", foo, bar);
 		sleep(1);
 	}
 
