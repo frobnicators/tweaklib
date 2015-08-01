@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
+#include <json.h>
 
 list_t vars = NULL;
 static unsigned int var_index = 0;
@@ -21,6 +22,7 @@ static const unsigned int var_invalid = UINT_MAX;
 static void var_free(struct var* var){
 	free(var->name);
 	free(var->description);
+	free(var->options);
 	free(var);
 }
 
@@ -67,8 +69,21 @@ void tweak_description(tweak_handle handle, const char* description){
 	}
 }
 
-void tweak_options(tweak_handle handle, const char* json){
+void tweak_options(tweak_handle handle, const char* data){
+	struct var* var = var_from_handle(handle);
+	if ( var ){
+		free(var->options);
+		var->options = NULL;
 
+		struct json_object* json = json_tokener_parse(data);
+		if ( !json ){
+			logmsg("Failed to parse options\n");
+			return;
+		}
+		json_object_put(json);
+
+		var->options = strdup(data);
+	}
 }
 
 const char* tweak_get_name(tweak_handle handle){

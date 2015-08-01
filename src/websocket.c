@@ -146,6 +146,7 @@ static struct json_object* serialize_vars(){
 		json_object_object_add(json_var, "name", json_object_new_string(var->name));
 		json_object_object_add(json_var, "handle", json_object_new_int(var->handle));
 		json_object_object_add(json_var, "description", var->description ? json_object_new_string(var->description) : NULL);
+		json_object_object_add(json_var, "options", var->options ? json_tokener_parse(var->options) : NULL);
 		json_object_object_add(json_var, "datatype", json_object_new_int(var->datatype));
 		json_object_object_add(json_var, "value", var->store(var));
 		json_object_array_add(json_vars, json_var);

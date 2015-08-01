@@ -18,6 +18,7 @@ struct var {
 	tweak_handle handle;
 	char* name;
 	char* description;
+	char* options;
 	size_t size;
 	void* ptr;
 	datatype_t datatype;

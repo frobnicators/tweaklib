@@ -20,6 +20,21 @@ var tweaklib = (function(){
 		}
 	}
 
+	function apply_field_options(item, field){
+		if ( !(field && item.options) ) return;
+
+		switch ( item.datatype ){
+		case DATATYPE_INTEGER:
+			if ( 'min' in item.options ){
+				field.attr('min', item.options.min);
+			}
+			if ( 'max' in item.options ){
+				field.attr('max', item.options.max);
+			}
+			break;
+		}
+	}
+
 	function render_var(key){
 		var item = vars[key];
 
@@ -49,9 +64,12 @@ var tweaklib = (function(){
 		default:
 			console.log('Unknown datatype', item.datatype);
 		}
-		field.data('datatype', item.datatype);
 
 		if ( field ){
+			field.data('datatype', item.datatype);
+
+			apply_field_options(item, field);
+
 			field.change(function(){
 				var value = $(this).val();
 				socket.send(JSON.stringify({

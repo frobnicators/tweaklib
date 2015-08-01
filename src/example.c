@@ -43,7 +43,7 @@ int main(int argc, const char* argv[]){
 	tweak_handle tl_bar = tweak_int("bar", &bar);
 	tweak_description(tl_bar, "Just some dummy value");
 	tweak_trigger(tl_bar, update);
-	tweak_options(tl_bar, "{min: 5, max: 35}"); /* json */
+	tweak_options(tl_bar, "{\"min\": 5, \"max\": 35}"); /* json */
 
 	signal(SIGINT, sighandler);
 
