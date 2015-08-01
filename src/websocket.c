@@ -159,6 +159,8 @@ static void websocket_hello(struct worker* client){
 
 	const char* data = json_object_to_json_string_ext(root, 0);
 	websocket_send(client, data, strlen(data));
+
+	json_object_put(root);
 }
 
 static void handle_update(struct json_object* json){
@@ -183,7 +185,7 @@ static void handle_update(struct json_object* json){
 }
 
 static void handle_message(struct worker* client, const char* data){
-	struct json_object* json = json_tokener_parse	(data);
+	struct json_object* json = json_tokener_parse(data);
 	if ( !json ){
 		logmsg("Failed to parse JSON\n");
 		return;
@@ -201,6 +203,8 @@ static void handle_message(struct worker* client, const char* data){
 	} else {
 		logmsg("unhandled message type %s\n", type_str);
 	}
+
+	json_object_put(json);
 }
 
 void websocket_loop(struct worker* client){

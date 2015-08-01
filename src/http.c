@@ -141,6 +141,12 @@ void http_request_init(http_request_t req){
 }
 
 void http_request_free(http_request_t req){
+	for ( unsigned int i = 0; i < req->header.num_elem; i++ ){
+		free(req->header.kv[i].key);
+		free(req->header.kv[i].value);
+	}
+	req->header.num_elem = 0;
+
 	free(req->url);
 	free(req->header.kv);
 }
@@ -168,6 +174,12 @@ void http_response_init(http_response_t resp){
 }
 
 void http_response_free(http_response_t resp){
+	for ( unsigned int i = 0; i < resp->header.num_elem; i++ ){
+		free(resp->header.kv[i].key);
+		free(resp->header.kv[i].value);
+	}
+	resp->header.num_elem = 0;
+
 	free(resp->header.kv);
 	free(resp->body);
 	free(resp->statusline);

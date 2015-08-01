@@ -20,6 +20,7 @@ static const unsigned int var_invalid = UINT_MAX;
 
 static void var_free(struct var* var){
 	free(var->name);
+	free(var->description);
 	free(var);
 }
 
@@ -37,6 +38,10 @@ void tweak_init_args(int port, const char* addr, int argc, char* argv[]){
 void tweak_cleanup(){
 	server_cleanup();
 	list_free(vars);
+
+	free(var_table);
+	var_table = NULL;
+	var_table_size = 0;
 }
 
 void tweak_output(tweak_output_func callback){

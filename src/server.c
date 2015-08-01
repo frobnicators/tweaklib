@@ -136,8 +136,6 @@ static void* server_loop(void* arg){
 				continue;
 			}
 
-			logmsg("IPC command %d received\n", command);
-
 			switch ( command ){
 			case IPC_SHUTDOWN:
 				running = 0;
