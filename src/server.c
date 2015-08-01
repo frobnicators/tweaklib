@@ -32,8 +32,9 @@ enum IPC {
 	IPC_SHUTDOWN = 1,
 };
 
-static struct worker server = {0, {0,0}, -1};
+static struct worker server = {0, 0, {0,0}, -1};
 static const size_t buffer_size = 16384;
+static unsigned int client_id = 1;
 
 static void* server_loop(void*);
 static void* client_loop(void*);
@@ -164,6 +165,7 @@ static void* server_loop(void* arg){
 			continue;
 		}
 		client->sd = cd;
+		client->id = client_id++;
 
 		char buf[PEER_ADDR_LEN];
 		client->peeraddr = strdup(peer_addr(cd, buf));
@@ -183,7 +185,7 @@ static void* server_loop(void* arg){
 	return NULL;
 }
 
-static void write_error(int sd, http_request_t req, http_response_t resp, int code, const char* details){
+static void write_error(struct worker* client, http_request_t req, http_response_t resp, int code, const char* details){
 	const char* message = http_status_description(code);
 	char* html = NULL;
 	if ( asprintf(&html, "<h1>%d: %s</h1><p>%s</p>", code, message, details ? details : message) == -1 ){
@@ -192,11 +194,11 @@ static void write_error(int sd, http_request_t req, http_response_t resp, int co
 
 	header_add(&resp->header, "Content-Type", "text/html");
 	http_response_status(resp, 404, message);
-	http_response_write_header(sd, req, resp, 0);
+	http_response_write_header(client, req, resp, 0);
 	if ( html ){
-		http_response_write_chunk(sd, html, strlen(html));
+		http_response_write_chunk(client->sd, html, strlen(html));
 	}
-	http_response_write_chunk(sd, NULL, 0);
+	http_response_write_chunk(client->sd, NULL, 0);
 }
 
 const char* peer_addr(int sd, char buf[PEER_ADDR_LEN]){
@@ -231,13 +233,13 @@ static void handle_websocket(struct worker* client, const http_request_t req, ht
 
 	/* validate that this request is actually requesting a websocket */
 	if ( !upgrade || strcmp(upgrade, "websocket") != 0 ){
-		write_error(client->sd, req, resp, 400, "Only websockets supported");
+		write_error(client, req, resp, 400, "Only websockets supported");
 		return;
 	}
 
 	/* for simplicity only version 13 (current) is supported */
 	if ( version != 13 ){
-		write_error(client->sd, req, resp, 400, "Only websocket v13 supported");
+		write_error(client, req, resp, 400, "Only websocket v13 supported");
 		return;
 	}
 
@@ -248,7 +250,7 @@ static void handle_websocket(struct worker* client, const http_request_t req, ht
 	header_add(&resp->header, "Sec-WebSocket-Protocol", "v1.tweaklib.sidvind.com");
 	header_del(&resp->header, "Transfer-Encoding");
 	http_response_status(resp, 101, http_status_description(101));
-	http_response_write_header(client->sd, req, resp, 1);
+	http_response_write_header(client, req, resp, 1);
 
 	/* retain this connection in a new loop */
 	websocket_loop(client);
@@ -272,7 +274,7 @@ static void handle_get(struct worker* client, const http_request_t req, http_res
 		/* static file found, send it */
 		header_add(&resp->header, "Content-Type", entry->mime);
 		http_response_status(resp, 200, "OK");
-		http_response_write_header(client->sd, req, resp, 0);
+		http_response_write_header(client, req, resp, 0);
 
 		/* check if a local (non-builtin) file is present. */
 		FILE* fp = fopen(entry->original, "r");
@@ -293,7 +295,7 @@ static void handle_get(struct worker* client, const http_request_t req, http_res
 	}
 
 	/* nothing found, 404 */
-	write_error(client->sd, req, resp, 404, NULL);
+	write_error(client, req, resp, 404, NULL);
 }
 
 static void handle_post(struct worker* client, const http_request_t req, http_response_t resp){
@@ -304,7 +306,7 @@ void* client_loop(void* ptr){
 	struct worker* client = (struct worker*)ptr;
 	char* buf = malloc(buffer_size);
 
-	logmsg("%s - client connected\n", client->peeraddr);
+	logmsg("%s [%d] - client connected\n", client->peeraddr, client->id);
 
 	for (;;){
 		/* wait for next request */
@@ -313,7 +315,7 @@ void* client_loop(void* ptr){
 			logmsg("recv() failed: %s\n", strerror(errno));
 			break;
 		} else if ( bytes == 0 ){
-			logmsg("%s - connection closed\n", client->peeraddr);
+			logmsg("%s [%d] - connection closed\n", client->peeraddr, client->id);
 			break;
 		}
 
@@ -347,7 +349,7 @@ void* client_loop(void* ptr){
 		/* ensure request was handled in some way */
 		if ( req.status == 0 ){
 			logmsg("Unhandled request\n");
-			write_error(client->sd, &req, &resp, 404, "No handler available for this request");
+			write_error(client, &req, &resp, 404, "No handler available for this request");
 		}
 
 		/* free resources allocated for this request */

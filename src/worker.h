@@ -5,6 +5,7 @@
 
 struct worker {
 	pthread_t thread;
+	unsigned int id;
 	int pipe[2];
 	int sd;
 	char* peeraddr;

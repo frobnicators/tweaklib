@@ -199,22 +199,21 @@ void http_response_status(http_response_t resp, int code, const char* msg){
 	}
 }
 
-void http_response_write_header(int sd, http_request_t req, http_response_t resp, int only_header){
-	char buf[PEER_ADDR_LEN];
-	logmsg("%s - %s %s -> %d\n", peer_addr(sd, buf), method_str(req->method), req->url, resp->statuscode);
+void http_response_write_header(struct worker* client, http_request_t req, http_response_t resp, int only_header){
+	logmsg("%s [%d] - %s %s -> %d\n", client->peeraddr, client->id, method_str(req->method), req->url, resp->statuscode);
 	req->status = resp->statuscode;
 
-	send(sd, resp->statusline, strlen(resp->statusline), MSG_MORE);
-	send(sd, "\r\n", 2, MSG_MORE);
+	send(client->sd, resp->statusline, strlen(resp->statusline), MSG_MORE);
+	send(client->sd, "\r\n", 2, MSG_MORE);
 
 	for ( unsigned int i = 0; i < resp->header.num_elem; i++ ){
-		send(sd, resp->header.kv[i].key, strlen(resp->header.kv[i].key), MSG_MORE);
-		send(sd, ": ", 2, MSG_MORE);
-		send(sd, resp->header.kv[i].value, strlen(resp->header.kv[i].value), MSG_MORE);
-		send(sd, "\r\n", 2, MSG_MORE);
+		send(client->sd, resp->header.kv[i].key, strlen(resp->header.kv[i].key), MSG_MORE);
+		send(client->sd, ": ", 2, MSG_MORE);
+		send(client->sd, resp->header.kv[i].value, strlen(resp->header.kv[i].value), MSG_MORE);
+		send(client->sd, "\r\n", 2, MSG_MORE);
 	}
 
-	send(sd, "\r\n", 2, only_header ? 0 : MSG_MORE);
+	send(client->sd, "\r\n", 2, only_header ? 0 : MSG_MORE);
 }
 
 void http_response_write_chunk(int sd, const char* data, size_t bytes){

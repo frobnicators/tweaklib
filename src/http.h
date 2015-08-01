@@ -1,6 +1,7 @@
 #ifndef TWEAKLIB_HTTP_H
 #define TWEAKLIB_HTTP_H
 
+#include "worker.h"
 #include <stddef.h>
 
 #ifdef __cplusplus
@@ -55,7 +56,7 @@ void http_response_init(http_response_t resp);
 void http_response_free(http_response_t resp);
 
 void http_response_status(http_response_t resp, int code, const char* msg);
-void http_response_write_header(int sd, http_request_t req, http_response_t resp, int only_header);
+void http_response_write_header(struct worker* worker, http_request_t req, http_response_t resp, int only_header);
 void http_response_write_chunk(int sd, const char* data, size_t bytes);
 
 /**

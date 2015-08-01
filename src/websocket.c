@@ -207,7 +207,7 @@ void websocket_loop(struct worker* client){
 	char* buf = malloc(buffer_size);
 	int running = 1;
 
-	logmsg("%s - websocket opened\n", client->peeraddr);
+	logmsg("%s [%d] - websocket opened\n", client->peeraddr, client->id);
 
 	websocket_hello(client);
 
@@ -218,7 +218,7 @@ void websocket_loop(struct worker* client){
 			logmsg("recv() failed: %s\n", strerror(errno));
 			break;
 		} else if ( bytes == 0 ){
-			logmsg("connection closed\n");
+			logmsg("%s [%d] - connection closed (via websocket)\n", client->peeraddr, client->id);
 			break;
 		}
 
