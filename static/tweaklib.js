@@ -66,7 +66,7 @@ var tweaklib = (function(){
 		switch ( item.datatype ){
 		case DATATYPE_INTEGER:
 		case DATATYPE_FLOAT:
-		case DATATYPE_INTEGER:
+		case DATATYPE_DOUBLE:
 			field = $('<input type="number" class="form-control" />');
 			break;
 
