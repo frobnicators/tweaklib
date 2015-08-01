@@ -2,18 +2,20 @@
 #include "config.h"
 #endif
 
-#include "websocket.h"
 #include "list.h"
 #include "log.h"
-#include "vars.h"
+#include "server.h"
 #include "utils/base64.h"
 #include "utils/sha1.h"
+#include "vars.h"
+#include "websocket.h"
 
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <json.h>
@@ -108,7 +110,6 @@ static char* websocket_frame_payload(int sd, char* ptr, size_t left, uint32_t ma
 		const uint32_t* end = (uint32_t*)(ptr + 4); /** @todo detect align to 4 */
 		while ( cur < end ){
 			*cur++ ^= masking_key;
-			//cur++;
 		}
 	}
 
@@ -207,16 +208,37 @@ static void handle_message(struct worker* client, const char* data){
 	json_object_put(json);
 }
 
+static int max(int a, int b){
+	return (a>b) ? a : b;
+}
+
 void websocket_loop(struct worker* client){
+	const int max_fd = max(client->sd, client->pipe[READ_FD])+1;
 	char* buf = malloc(buffer_size);
-	int running = 1;
 
 	logmsg("%s [%d] - websocket opened\n", client->peeraddr, client->id);
 
 	websocket_hello(client);
 
-	while (running){
+	while (client->running){
+		fd_set fds;
+		FD_ZERO(&fds);
+		FD_SET(client->sd, &fds);
+		FD_SET(client->pipe[READ_FD], &fds);
+
 		/* wait for next request */
+		if ( select(max_fd, &fds, NULL, NULL, NULL) == -1 ){
+			logmsg("select() failed: %s\n", strerror(errno));
+			continue;
+		}
+
+		/* handle IPC */
+		if ( FD_ISSET(client->pipe[READ_FD], &fds) ){
+			handle_ipc(client);
+			continue;
+		}
+
+		/* read data */
 		ssize_t bytes = recv(client->sd, buf, sizeof(struct frame_header), 0);
 		if ( bytes == -1 ){
 			logmsg("recv() failed: %s\n", strerror(errno));
@@ -260,7 +282,7 @@ void websocket_loop(struct worker* client){
 			break;
 
 		case OPCODE_CLOSE:
-			running = 0;
+			client->running = 0;
 			break;
 
 		default:
@@ -268,7 +290,7 @@ void websocket_loop(struct worker* client){
 		}
 	}
 
-	logmsg("%s - websocket closed\n", client->peeraddr);
+	logmsg("%s [%d] - websocket closed\n", client->peeraddr, client->id);
 	free(buf);
 }
 

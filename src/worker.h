@@ -8,6 +8,18 @@ struct worker {
 	unsigned int id;
 	int pipe[2];
 	int sd;
+	int slot;
+	int running;
 	char* peeraddr;
 };
+
+enum {
+	READ_FD = 0,
+	WRITE_FD = 1,
+};
+
+enum IPC {
+	IPC_SHUTDOWN = 1,
+};
+
 #endif /* TWEAKLIB_WORKER_H */

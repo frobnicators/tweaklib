@@ -25,16 +25,7 @@
 
 #define MAX_CLIENT_SLOTS 24
 
-enum {
-	READ_FD = 0,
-	WRITE_FD = 1,
-};
-
-enum IPC {
-	IPC_SHUTDOWN = 1,
-};
-
-static struct worker server = {0, 0, {0,0}, -1};
+static struct worker server = {0, 0, {0,0}, -1, 0, 1, NULL};
 static const size_t buffer_size = 16384;
 static unsigned int client_id = 0;
 static struct worker* clients[MAX_CLIENT_SLOTS] = {0,};
@@ -104,28 +95,66 @@ void server_init(int port, const char* listen_addr){
 }
 
 void server_cleanup(){
-	const enum IPC command = IPC_SHUTDOWN;
+	static const enum IPC command = IPC_SHUTDOWN;
+
+	/* tell server thread to stop */
 	if ( write(server.pipe[WRITE_FD], &command, sizeof(command)) == -1 ){
 		logmsg("write() failed: %s\n", strerror(errno));
 	}
 
+	/* tell all clients threads to stop */
+	for ( int i = 0; i < MAX_CLIENT_SLOTS; i++ ){
+		if ( clients[i] == NULL ) continue;
+		if ( write(clients[i]->pipe[WRITE_FD], &command, sizeof(command)) == -1 ){
+			logmsg("write() failed: %s\n", strerror(errno));
+		}
+	}
+
 	/* wait for server shutdown */
 	pthread_join(server.thread, NULL);
+
+	/* wait for all clients to shutdown */
+	for ( int i = 0; i < MAX_CLIENT_SLOTS; i++ ){
+		if ( clients[i] == NULL ) continue;
+		pthread_join(clients[i]->thread, NULL);
+	}
+
+	/* yield so valgrind will stop complaining because of a race condition where
+	 * the clients has been awaken, handled the IPC termination command and
+	 * actually started to shutdown but not finished yet. Since the client slot
+	 * then would be free it would not call pthread_join. */
+	pthread_yield();
 }
 
 static int max(int a, int b){
 	return (a>b) ? a : b;
 }
 
-static void* server_loop(void* arg){
-	const int max_fd = max(server.sd, server.pipe[0])+1;
-	int running = 1;
+void handle_ipc(struct worker* client){
+	enum IPC command;
+	if ( read(client->pipe[READ_FD], &command, sizeof(command)) == -1 ){
+		logmsg("read() failed: %s\n", strerror(errno));
+		return;
+	}
 
-	while (running) {
+	switch ( command ){
+	case IPC_SHUTDOWN:
+		client->running = 0;
+		break;
+
+	default:
+		logmsg("Unknown IPC command %d ignored.\n", command);
+	}
+}
+
+static void* server_loop(void* arg){
+	const int max_fd = max(server.sd, server.pipe[READ_FD])+1;
+
+	while (server.running) {
 		fd_set fds;
 		FD_ZERO(&fds);
 		FD_SET(server.sd, &fds);
-		FD_SET(server.pipe[0], &fds);
+		FD_SET(server.pipe[READ_FD], &fds);
 
 		if ( select(max_fd, &fds, NULL, NULL, NULL) == -1 ){
 			logmsg("select() failed: %s\n", strerror(errno));
@@ -134,21 +163,7 @@ static void* server_loop(void* arg){
 
 		/* handle IPC */
 		if ( FD_ISSET(server.pipe[READ_FD], &fds) ){
-			enum IPC command;
-			if ( read(server.pipe[READ_FD], &command, sizeof(command)) == -1 ){
-				logmsg("read() failed: %s\n", strerror(errno));
-				continue;
-			}
-
-			switch ( command ){
-			case IPC_SHUTDOWN:
-				running = 0;
-				break;
-
-			default:
-				logmsg("Unknown IPC command %d ignored.\n", command);
-			}
-
+			handle_ipc(&server);
 			continue;
 		}
 
@@ -166,8 +181,17 @@ static void* server_loop(void* arg){
 			shutdown(cd, SHUT_RDWR);
 			continue;
 		}
+
+		/* IPC pipe */
+		if ( pipe2(client->pipe, O_NONBLOCK) != 0 ){
+			logmsg("pipe2() failed: %s\n", strerror(errno));
+			shutdown(cd, SHUT_RDWR);
+			continue;
+		}
+
 		client->sd = cd;
 		client->id = client_id++;
+		client->running = 1;
 
 		char buf[PEER_ADDR_LEN];
 		client->peeraddr = strdup(peer_addr(cd, buf));
@@ -197,6 +221,7 @@ static void* server_loop(void* arg){
 
 		/* store client */
 		clients[slot] = client;
+		client->slot = slot;
 
 		/* create thread for client */
 		int error;
@@ -209,6 +234,8 @@ static void* server_loop(void* arg){
 	/* close socket */
 	shutdown(server.sd, SHUT_RDWR);
 	server.sd = -1;
+
+	logmsg("Tweaklib server closed\n");
 
 	return NULL;
 }
@@ -315,6 +342,7 @@ static void handle_get(struct worker* client, const http_request_t req, http_res
 			while ( (bytes=fread(buf, 1, sizeof(buf), fp)) > 0 ){
 				http_response_write_chunk(client->sd, buf, bytes);
 			}
+			fclose(fp);
 		} else {
 			/* no local file, use builtin version */
 			http_response_write_chunk(client->sd, entry->data, entry->bytes);
@@ -334,12 +362,30 @@ static void handle_post(struct worker* client, const http_request_t req, http_re
 
 void* client_loop(void* ptr){
 	struct worker* client = (struct worker*)ptr;
+	const int max_fd = max(client->sd, client->pipe[READ_FD])+1;
 	char* buf = malloc(buffer_size);
 
 	logmsg("%s [%d] - client connected\n", client->peeraddr, client->id);
 
-	for (;;){
+	while (client->running){
+		fd_set fds;
+		FD_ZERO(&fds);
+		FD_SET(client->sd, &fds);
+		FD_SET(client->pipe[READ_FD], &fds);
+
 		/* wait for next request */
+		if ( select(max_fd, &fds, NULL, NULL, NULL) == -1 ){
+			logmsg("select() failed: %s\n", strerror(errno));
+			continue;
+		}
+
+		/* handle IPC */
+		if ( FD_ISSET(client->pipe[READ_FD], &fds) ){
+			handle_ipc(client);
+			continue;
+		}
+
+		/* read request */
 		ssize_t bytes = recv(client->sd, buf, buffer_size-1, 0); /* -1 so null terminator will fit */
 		if ( bytes == -1 ){
 			logmsg("recv() failed: %s\n", strerror(errno));
@@ -388,8 +434,12 @@ void* client_loop(void* ptr){
 	}
 
 	/* close client connection */
+	clients[client->slot] = NULL;
+	close(client->pipe[0]);
+	close(client->pipe[1]);
 	shutdown(client->sd, SHUT_RDWR);
 	free(client->peeraddr);
 	free(client);
+	free(buf);
 	return NULL;
 }
