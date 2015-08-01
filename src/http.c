@@ -200,6 +200,7 @@ const char* http_status_description(int code){
 	case 403: return "Forbidden";
 	case 404: return "Not Found";
 	case 500: return "Internal Server Error";
+	case 503: return "Service Unavailable";
 	default: return "Invalid status";
 	}
 }

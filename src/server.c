@@ -23,6 +23,8 @@
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
 
+#define MAX_CLIENT_SLOTS 24
+
 enum {
 	READ_FD = 0,
 	WRITE_FD = 1,
@@ -34,10 +36,12 @@ enum IPC {
 
 static struct worker server = {0, 0, {0,0}, -1};
 static const size_t buffer_size = 16384;
-static unsigned int client_id = 1;
+static unsigned int client_id = 0;
+static struct worker* clients[MAX_CLIENT_SLOTS] = {0,};
 
 static void* server_loop(void*);
 static void* client_loop(void*);
+static void write_error(struct worker* client, http_request_t req, http_response_t resp, int code, const char* details);
 
 void server_init(int port, const char* listen_addr){
 	/* make sure server isn't initailzed twice */
@@ -168,6 +172,32 @@ static void* server_loop(void* arg){
 		char buf[PEER_ADDR_LEN];
 		client->peeraddr = strdup(peer_addr(cd, buf));
 
+		/* find a free client slot */
+		int slot = 0;
+		for ( ; slot < MAX_CLIENT_SLOTS; slot++ ){
+			if ( clients[slot] == NULL ) break;
+		}
+
+		/* if no free slots is available return a 503 */
+		if ( slot == MAX_CLIENT_SLOTS ){
+			struct http_request req;
+			struct http_response resp;
+			http_request_init(&req);
+			http_response_init(&resp);
+
+			write_error(client, &req, &resp, 503, "No free slots available.\n");
+
+			http_request_free(&req);
+			http_response_free(&resp);
+			shutdown(cd, SHUT_RDWR);
+			free(client->peeraddr);
+			free(client);
+			continue;
+		}
+
+		/* store client */
+		clients[slot] = client;
+
 		/* create thread for client */
 		int error;
 		if ( (error=pthread_create(&client->thread, NULL, client_loop, client)) != 0 ){
@@ -191,12 +221,14 @@ static void write_error(struct worker* client, http_request_t req, http_response
 	}
 
 	header_add(&resp->header, "Content-Type", "text/html");
-	http_response_status(resp, 404, message);
+	http_response_status(resp, code, message);
 	http_response_write_header(client, req, resp, 0);
 	if ( html ){
 		http_response_write_chunk(client->sd, html, strlen(html));
 	}
 	http_response_write_chunk(client->sd, NULL, 0);
+
+	free(html);
 }
 
 const char* peer_addr(int sd, char buf[PEER_ADDR_LEN]){
