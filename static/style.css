@@ -1,0 +1,14 @@
+#status {
+	position: absolute;
+	right: 15px;
+	top: 20px;
+	font-weight: bold;
+}
+
+#status.status-ok {
+	color: #090;
+}
+
+#status.status-failure {
+	color: #900;
+}

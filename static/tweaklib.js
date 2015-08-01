@@ -1,5 +1,7 @@
 var tweaklib = (function(){
 	const DATATYPE_INTEGER = 0;
+	const STATUS_OK = 1;
+	const STATUS_FAILURE = 2;
 
 	var socket = null;
 	var vars = {};
@@ -64,11 +66,33 @@ var tweaklib = (function(){
 		}
 	}
 
+	function set_status(msg, type){
+		var status = $('#status');
+		status.html(msg);
+		status.removeClass('status-ok status-failure');
+
+		switch (type){
+		case STATUS_OK:
+			status.addClass('status-ok'); break;
+		case STATUS_FAILURE:
+			status.addClass('status-failure'); break;
+		}
+	}
+
 	function init(){
 		socket = new WebSocket("ws://localhost:8080/socket", "v1.tweaklib.sidvind.com");
 
 		socket.onopen = function(event){
+			set_status('Connected', STATUS_OK);
 		};
+
+		socket.onerror = function(event){
+			console.log(event);
+		}
+
+		socket.onclose = function(event){
+			set_status('Disconnected', STATUS_FAILURE);
+		}
 
 		socket.onmessage = function(event){
 			var data = JSON.parse(event.data);
