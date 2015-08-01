@@ -57,7 +57,7 @@ void default_trigger(tweak_handle handle){
 void tweak_trigger(tweak_handle handle, tweak_callback callback){
 	struct var* var = var_from_handle(handle);
 	if ( var ){
-		var->update = callback;
+		var->update = callback ? callback : default_trigger;
 	}
 }
 
@@ -125,5 +125,6 @@ struct var* var_create(const char* name, size_t size, void* ptr, datatype_t data
 	var->size = size;
 	var->ptr = ptr;
 	var->datatype = datatype;
+	var->update = default_trigger;
 	return var;
 }
