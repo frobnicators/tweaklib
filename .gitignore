@@ -26,4 +26,5 @@
 /pack
 /src/static.c
 /stamp-h1
+/static/constants.js
 tweak/version.h
