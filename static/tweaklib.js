@@ -1,5 +1,4 @@
 var tweaklib = (function(){
-	const DATATYPE_INTEGER = 0;
 	const STATUS_OK = 1;
 	const STATUS_FAILURE = 2;
 	const STATUS_CONNECTING = 3;

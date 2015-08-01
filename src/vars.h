@@ -7,7 +7,14 @@
 struct var;
 
 typedef enum {
-	DATATYPE_INTEGER,
+	DATATYPE_INTEGER = 1,
+	DATATYPE_FLOAT = 2,
+	DATATYPE_DOUBLE = 3,
+	DATATYPE_TIME = 4,
+	DATATYPE_STRING = 5,
+	DATATYPE_VECTOR = 6,
+	DATATYPE_COLOR = 7,
+	DATATYPE_ENUM = 8,
 } datatype_t;
 
 typedef void(*update_callback)(tweak_handle handle);
