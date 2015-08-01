@@ -121,6 +121,7 @@ struct var* var_create(const char* name, size_t size, void* ptr, datatype_t data
 	struct var* var = malloc(sizeof(struct var));
 	var->name =  strdup(name);
 	var->description = NULL;
+	var->options = NULL;
 	var->size = size;
 	var->ptr = ptr;
 	var->datatype = datatype;
