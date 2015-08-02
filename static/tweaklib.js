@@ -7,16 +7,20 @@ var tweaklib = (function(){
 	var vars = {};
 	var id_key = 1;
 
-	function serialize(value, field){
-		var datatype = $(field).data('datatype');
+	function serialize(field){
+		var $field = $(field);
+		var datatype = $field.data('datatype');
 
 		switch ( datatype ){
 		case DATATYPE_INTEGER:
-			return parseInt(value);
+			return parseInt($field.find('input').val());
 
 		case DATATYPE_FLOAT:
 		case DATATYPE_DOUBLE:
-			return parseFloat(value);
+			return parseFloat($field.find('input').val());
+
+		case DATATYPE_TIME:
+			return $field.data('time').serialize();
 
 		default:
 			return value;
@@ -43,6 +47,20 @@ var tweaklib = (function(){
 		}
 	}
 
+	function template_filename(datatype){
+		switch ( datatype ){
+		default: return false;
+		}
+	}
+
+	function render_template(datatype, data){
+		var filename = template_filename(datatype);
+		if ( !filename ){
+			return $('<input type="number" class="form-control" />');
+		}
+		return $(Handlebars.templates[filename](data));
+	}
+
 	function render_var(key){
 		var item = vars[key];
 
@@ -67,7 +85,8 @@ var tweaklib = (function(){
 		case DATATYPE_INTEGER:
 		case DATATYPE_FLOAT:
 		case DATATYPE_DOUBLE:
-			field = $('<input type="number" class="form-control" />');
+			field = render_template(item.datatype);
+			field.val(item.value);
 			break;
 
 		default:
@@ -76,23 +95,24 @@ var tweaklib = (function(){
 
 		if ( field ){
 			field.data('datatype', item.datatype);
-			field.val(item.value);
-
 			apply_field_options(item, field);
 
-			field.change(function(){
-				var value = $(this).val();
-				socket.send(JSON.stringify({
-					type: 'update',
-					handle: item.handle,
-					value: serialize(value, this),
-				}));
+			field.find('input').change(function(){
+				send_update(item);
 			});
 			item.elem.append(field);
 			item.field = field;
 		}
 
 		$('#vars').append(item.elem);
+	}
+
+	function send_update(item){
+		socket.send(JSON.stringify({
+			type: 'update',
+			handle: item.handle,
+			value: serialize(item.field),
+		}));
 	}
 
 	function load_vars(data){
@@ -125,8 +145,6 @@ var tweaklib = (function(){
 			var button = $('<button class="btn btn-default">Reconnect</button>');
 			button.click(function(){
 				$(this).hide();
-				console.log(this);
-				console.log($(this));
 				set_status('Connecting', STATUS_CONNECTING);
 				init();
 			});
