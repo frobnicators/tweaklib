@@ -94,6 +94,10 @@ const char* tweak_get_name(tweak_handle handle){
 	return var ? var->name : NULL;
 }
 
+void tweak_refresh(){
+
+}
+
 tweak_handle var_add(struct var* var){
 	int index = list_push(vars, var);
 

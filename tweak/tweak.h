@@ -81,6 +81,12 @@ const char* tweak_get_name(tweak_handle handle);
 void tweak_lock();
 void tweak_unlock();
 
+/**
+ * Call this after updating variables (e.g. once per frame) to send updates
+ * to clients.
+ */
+void tweak_refresh();
+
 #ifdef __cplusplus
 }
 #endif
