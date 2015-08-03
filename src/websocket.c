@@ -3,6 +3,7 @@
 #endif
 
 #include "list.h"
+#include "ipc.h"
 #include "log.h"
 #include "server.h"
 #include "utils/base64.h"
@@ -237,7 +238,13 @@ void websocket_loop(struct worker* client){
 
 		/* handle IPC */
 		if ( FD_ISSET(client->pipe[READ_FD], &fds) ){
-			handle_ipc(client);
+			enum IPC ipc;
+			switch ( ipc=ipc_fetch(client) ){
+			case IPC_NONE:
+				break;
+			default:
+				logmsg("Unexpected IPC command %d by websocket worker\n", ipc);
+			}
 			continue;
 		}
 

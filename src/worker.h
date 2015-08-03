@@ -18,8 +18,4 @@ enum {
 	WRITE_FD = 1,
 };
 
-enum IPC {
-	IPC_SHUTDOWN = 1,
-};
-
 #endif /* TWEAKLIB_WORKER_H */

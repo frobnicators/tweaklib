@@ -3,6 +3,7 @@
 #endif
 
 #include "server.h"
+#include "ipc.h"
 #include "log.h"
 #include "http.h"
 #include "static.h"
@@ -95,19 +96,12 @@ void server_init(int port, const char* listen_addr){
 }
 
 void server_cleanup(){
-	static const enum IPC command = IPC_SHUTDOWN;
-
 	/* tell server thread to stop */
-	if ( write(server.pipe[WRITE_FD], &command, sizeof(command)) == -1 ){
-		logmsg("write() failed: %s\n", strerror(errno));
-	}
+	ipc_push(&server, IPC_SHUTDOWN);
 
 	/* tell all clients threads to stop */
 	for ( int i = 0; i < MAX_CLIENT_SLOTS; i++ ){
-		if ( clients[i] == NULL ) continue;
-		if ( write(clients[i]->pipe[WRITE_FD], &command, sizeof(command)) == -1 ){
-			logmsg("write() failed: %s\n", strerror(errno));
-		}
+		ipc_push(clients[i], IPC_SHUTDOWN);
 	}
 
 	/* wait for server shutdown */
@@ -130,23 +124,6 @@ static int max(int a, int b){
 	return (a>b) ? a : b;
 }
 
-void handle_ipc(struct worker* client){
-	enum IPC command;
-	if ( read(client->pipe[READ_FD], &command, sizeof(command)) == -1 ){
-		logmsg("read() failed: %s\n", strerror(errno));
-		return;
-	}
-
-	switch ( command ){
-	case IPC_SHUTDOWN:
-		client->running = 0;
-		break;
-
-	default:
-		logmsg("Unknown IPC command %d ignored.\n", command);
-	}
-}
-
 static void* server_loop(void* arg){
 	const int max_fd = max(server.sd, server.pipe[READ_FD])+1;
 
@@ -163,7 +140,14 @@ static void* server_loop(void* arg){
 
 		/* handle IPC */
 		if ( FD_ISSET(server.pipe[READ_FD], &fds) ){
-			handle_ipc(&server);
+			enum IPC ipc;
+			switch ( ipc=ipc_fetch(&server) ){
+			case IPC_NONE:
+				break;
+			default:
+				logmsg("Unexpected IPC command %d by server worker\n", ipc);
+			}
+			continue;
 			continue;
 		}
 
@@ -381,7 +365,13 @@ void* client_loop(void* ptr){
 
 		/* handle IPC */
 		if ( FD_ISSET(client->pipe[READ_FD], &fds) ){
-			handle_ipc(client);
+			enum IPC ipc;
+			switch ( ipc=ipc_fetch(client) ){
+			case IPC_NONE:
+				break;
+			default:
+				logmsg("Unexpected IPC command %d by HTTP worker\n", ipc);
+			}
 			continue;
 		}
 

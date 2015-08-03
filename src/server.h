@@ -11,6 +11,15 @@ void server_init(int port, const char* addr);
 void server_cleanup();
 
 const char* peer_addr(int sd, char buf[PEER_ADDR_LEN]);
-void handle_ipc(struct worker* client);
+
+/**
+ * Fetch IPC command and try to handle it. If return value is non-zero caller should handle it.
+ */
+enum IPC ipc_fetch(struct worker* client);
+
+/**
+ * Send IPC command to worker.
+ */
+void ipc_push(struct worker* thread, enum IPC command);
 
 #endif /* TWEAKLIB_INT_SERVER_H */

@@ -15,6 +15,7 @@ libtweak_la_SOURCES = \
 	src/dt_double.c \
 	src/dt_float.c \
 	src/dt_int.c \
+	src/ipc.c src/ipc.h \
 	src/http.c src/http.h \
 	src/list.c src/list.h \
 	src/log.c src/log.h \
