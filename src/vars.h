@@ -28,6 +28,7 @@ struct var {
 	char* options;
 	size_t size;
 	void* ptr;
+	int ownership;
 	datatype_t datatype;
 
 	store_callback store;

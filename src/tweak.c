@@ -20,6 +20,9 @@ static unsigned int var_table_size = 0;
 static const unsigned int var_invalid = UINT_MAX;
 
 static void var_free(struct var* var){
+	if ( var->ownership ){
+		free(var->ptr);
+	}
 	free(var->name);
 	free(var->description);
 	free(var->options);
@@ -124,6 +127,7 @@ struct var* var_create(const char* name, size_t size, void* ptr, datatype_t data
 	var->options = NULL;
 	var->size = size;
 	var->ptr = ptr;
+	var->ownership = 0;
 	var->datatype = datatype;
 	var->update = default_trigger;
 	return var;
