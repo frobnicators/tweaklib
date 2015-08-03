@@ -18,6 +18,7 @@ static unsigned int var_index = 0;
 static unsigned int* var_table = NULL;
 static unsigned int var_table_size = 0;
 static const unsigned int var_invalid = UINT_MAX;
+static pthread_mutex_t tweak_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 static void var_free(struct var* var){
 	if ( var->ownership ){
@@ -92,6 +93,14 @@ void tweak_options(tweak_handle handle, const char* data){
 const char* tweak_get_name(tweak_handle handle){
 	struct var* var = var_from_handle(handle);
 	return var ? var->name : NULL;
+}
+
+void tweak_lock(){
+	pthread_mutex_lock(&tweak_mutex);
+}
+
+void tweak_unlock(){
+	pthread_mutex_unlock(&tweak_mutex);
 }
 
 void tweak_refresh(){

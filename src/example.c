@@ -48,7 +48,12 @@ int main(int argc, const char* argv[]){
 	signal(SIGINT, sighandler);
 
 	while (running) {
-		printf("foo: %d bar: %.1f\n", foo, bar);
+		tweak_lock();
+		{
+			printf("foo: %d bar: %.1f\n", foo, bar);
+		}
+		tweak_unlock();
+
 		sleep(1);
 	}
 

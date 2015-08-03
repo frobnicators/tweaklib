@@ -181,7 +181,9 @@ static void handle_update(struct json_object* json){
 
 	struct var* var = var_from_handle(json_object_get_int(handle));
 	if ( var ){
+		tweak_lock();
 		var->load(var, value);
+		tweak_unlock();
 		var->update(var->handle);
 	}
 }
