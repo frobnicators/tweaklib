@@ -104,7 +104,7 @@ void tweak_unlock(){
 }
 
 void tweak_refresh(){
-
+	server_refresh_vars();
 }
 
 tweak_handle var_add(struct var* var){

@@ -51,8 +51,10 @@ int main(int argc, const char* argv[]){
 		tweak_lock();
 		{
 			printf("foo: %d bar: %.1f\n", foo, bar);
+			foo++;
 		}
 		tweak_unlock();
+		tweak_refresh();
 
 		sleep(1);
 	}

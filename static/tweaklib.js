@@ -27,6 +27,16 @@ var tweaklib = (function(){
 		}
 	}
 
+	function unserialize(field, value){
+		var $field = $(field);
+		var datatype = $field.data('datatype');
+
+		switch ( datatype ){
+		default:
+			$field.find('input').val(value);
+		}
+	}
+
 	function apply_field_options(item, field){
 		if ( !(field && item.options) ) return;
 
@@ -61,19 +71,17 @@ var tweaklib = (function(){
 		return $(Handlebars.templates[filename](data));
 	}
 
-	function render_var(key){
-		var item = vars[key];
-
+	function render_var(item){
 		if ( item.elem ){
 			/* only update value without recreating element */
 			/* @todo handle change of datatype */
-			item.field.val(item.value);
+			unserialize(item.field, item.value);
 			return;
 		}
 
 		item.elem = $('<div></div>');
-		item.elem.data('name', key);
-		item.elem.attr('data-name', key); /* for easier debugger with inspector */
+		item.elem.data('handle', item.handle);
+		item.elem.attr('data-handle', item.handle); /* for easier debugger with inspector */
 		item.elem.addClass('var-' + (id_key++));
 		item.elem.append('<h3>' + item.name + '</h3>');
 		if ( item.description ){
@@ -86,7 +94,6 @@ var tweaklib = (function(){
 		case DATATYPE_FLOAT:
 		case DATATYPE_DOUBLE:
 			field = render_template(item.datatype);
-			field.find('input').val(item.value);
 			break;
 
 		default:
@@ -96,6 +103,7 @@ var tweaklib = (function(){
 		if ( field ){
 			field.data('datatype', item.datatype);
 			apply_field_options(item, field);
+			unserialize(field, item.value);
 
 			field.find('input').change(function(){
 				send_update(item);
@@ -118,8 +126,20 @@ var tweaklib = (function(){
 	function load_vars(data){
 		for ( var key in data ){
 			var elem = data[key];
-			vars[elem.name] = $.extend({}, vars[elem.name], elem);
-			render_var(elem.name);
+			vars[elem.handle] = item = $.extend({}, vars[elem.handle], elem);
+			render_var(item);
+		}
+	}
+
+	function var_from_handle(handle){
+		return vars[handle];
+	}
+
+	function refresh_vars(data){
+		for ( var key in data ){
+			var elem = data[key];
+			var item = var_from_handle(elem.handle);
+			unserialize(item.field, elem.value);
 		}
 	}
 
@@ -172,11 +192,14 @@ var tweaklib = (function(){
 
 		socket.onmessage = function(event){
 			var data = JSON.parse(event.data);
-			console.log('message', data);
 
 			if ( data.type === 'hello' ){
 				load_vars(data.vars);
-			};
+			} else if ( data.type == 'refresh' ){
+				refresh_vars(data.vars);
+			} else {
+				console.log('message', data);
+			}
 		}
 	}
 

@@ -21,6 +21,10 @@ enum IPC ipc_fetch(struct worker* client){
 		return IPC_HANDLED;
 		break;
 
+	case IPC_REFRESH:
+		/* pass to caller */
+		break;
+
 	default:
 		logmsg("Unknown IPC command %d ignored.\n", command);
 		return IPC_NONE;
@@ -34,4 +38,13 @@ void ipc_push(struct worker* thread, enum IPC command){
 	if ( write(thread->pipe[WRITE_FD], &command, sizeof(command)) == -1 ){
 		logmsg("ipc_command - write() failed: %s\n", strerror(errno));
 	}
+}
+
+const char* ipc_name(enum IPC command){
+	switch ( command ){
+	case IPC_NONE: return "<none>";
+	case IPC_REFRESH: return "<REFRESH>";
+	case IPC_SHUTDOWN: return "<SHUTDOWN>";
+	}
+	return "<invalid>";
 }
