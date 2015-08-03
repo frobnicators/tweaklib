@@ -56,7 +56,7 @@ var tweaklib = (function(){
 	function render_template(datatype, data){
 		var filename = template_filename(datatype);
 		if ( !filename ){
-			return $('<input type="number" class="form-control" />');
+			return $('<div class="form-group"><input type="number" class="form-control" /></div>');
 		}
 		return $(Handlebars.templates[filename](data));
 	}
@@ -86,7 +86,7 @@ var tweaklib = (function(){
 		case DATATYPE_FLOAT:
 		case DATATYPE_DOUBLE:
 			field = render_template(item.datatype);
-			field.val(item.value);
+			field.find('input').val(item.value);
 			break;
 
 		default:
