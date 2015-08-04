@@ -9,11 +9,15 @@ enum IPC {
 
 	/* common */
 	IPC_SHUTDOWN = 1,             /* request for shutdown */
+	IPC_TESTING,                  /* for testing only */
 
 	/* websocket */
 	IPC_REFRESH = 128,            /* send updated variables to client */
 };
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /**
  * Fetch IPC command and try to handle it. If return value is non-zero caller should handle it.
@@ -32,5 +36,9 @@ void ipc_push(struct worker* thread, enum IPC command, const void* payload, size
  * Convert IPC enum to string.
  */
 const char* ipc_name(enum IPC command);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* TWEAKLIB_INT_IPC_H */

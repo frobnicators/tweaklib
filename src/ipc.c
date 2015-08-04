@@ -8,7 +8,6 @@
 #include <errno.h>
 #include <unistd.h>
 
-
 static int min(int a, int b){
 	return (a<b) ? a : b;
 }
@@ -20,6 +19,10 @@ static void ipc_fetch_payload(struct worker* client, void* dst, size_t payload_s
 		ssize_t bytes = read(client->pipe[READ_FD], dst ? dst : buf, min(sizeof(buf), payload_size));
 		if ( bytes == -1 ){
 			logmsg("ipc_flush - read() failed: %s\n", strerror(errno));
+			logmsg("things will probably explode now, bye bye!\n");
+			return;
+		} else if ( bytes == 0 ){
+			logmsg("ipc_flush - read() no more data\n");
 			logmsg("things will probably explode now, bye bye!\n");
 			return;
 		}
@@ -68,6 +71,7 @@ enum IPC ipc_fetch(struct worker* client, void** payload, size_t* payload_size_p
 		return IPC_HANDLED;
 		break;
 
+	case IPC_TESTING:
 	case IPC_REFRESH:
 		/* pass to caller */
 		break;
@@ -112,6 +116,7 @@ void ipc_push(struct worker* thread, enum IPC command, const void* payload, size
 const char* ipc_name(enum IPC command){
 	switch ( command ){
 	case IPC_NONE: return "<none>";
+	case IPC_TESTING: return "<testing>";
 	case IPC_REFRESH: return "<REFRESH>";
 	case IPC_SHUTDOWN: return "<SHUTDOWN>";
 	}

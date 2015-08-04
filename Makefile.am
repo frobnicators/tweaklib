@@ -1,10 +1,10 @@
 ACLOCAL_AMFLAGS = -I m4
 AM_CFLAGS = -Wall -Wcast-qual -fvisibility=hidden -I${top_srcdir}/src
 AM_CXXFLAGS = ${AM_CFLAGS}
-BUILT_SOURCES = src/static.c ${top_srcdir}/static/constants.js ${top_srcdir}/static/templates.js
+BUILT_SOURCES = src/static.c ${top_srcdir}/static/constants.js ${top_srcdir}/static/templates.js ${top_srcdir}/tests/ipc_fuzz.bin
 
 lib_LTLIBRARIES = libtweak.la
-noinst_PROGRAMS = example pack
+noinst_PROGRAMS = example pack ipc_fuzz
 
 nobase_include_HEADERS = tweak/tweak.h tweak/version.h
 
@@ -43,7 +43,7 @@ ${top_srcdir}/static/constants.js: src/vars.h
 ${top_srcdir}/static/templates.js: ${top_srcdir}/src/templates/time.html
 	$(AM_V_GEN)handlebars $^ > $@
 
-TESTS = tests/websocket
+TESTS = tests/websocket tests/ipc
 check_PROGRAMS = ${TESTS}
 check_LIBRARIES = libtweak_test.a
 
@@ -52,5 +52,15 @@ tests_websocket_CFLAGS = ${AM_CFLAGS} ${json_CFLAGS}
 tests_websocket_LDADD = $(CPPUNIT_LIBS) libtweak_test.a ${libtweak_la_LIBADD}
 tests_websocket_LDFLAGS = -pthread
 
+tests_ipc_SOURCES = tests/ipc.cpp src/ipc.c
+tests_ipc_CFLAGS = ${AM_CFLAGS} ${json_CFLAGS}
+tests_ipc_LDADD = $(CPPUNIT_LIBS) libtweak_test.a ${libtweak_la_LIBADD}
+tests_ipc_LDFLAGS = -pthread
+
 libtweak_test_a_SOURCES = ${libtweak_la_SOURCES}
 libtweak_test_a_CFLAGS = ${libtweak_la_CFLAGS}
+
+ipc_fuzz_SOURCES = src/ipc.c src/log.c tests/ipc_fuzz.c
+
+${top_srcdir}/tests/ipc_fuzz.bin: ipc_fuzz
+	$(AM_V_GEN)./ipc_fuzz - > $@

@@ -17,6 +17,7 @@
 /configure
 /core
 /example
+/fuzz
 /libtool
 /m4/libtool.m4
 /m4/ltoptions.m4
@@ -27,4 +28,5 @@
 /src/static.c
 /stamp-h1
 /static/constants.js
+/tests/ipc_fuzz.bin
 tweak/version.h
