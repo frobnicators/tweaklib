@@ -7,75 +7,147 @@ var tweaklib = (function(){
 	var vars = {};
 	var id_key = 1;
 
-	function serialize(field){
-		var $field = $(field);
-		var datatype = $field.data('datatype');
+	Handlebars.registerHelper('field-attributes', function(context) {
+		var options = context.data.root;
+		var attr = [];
 
-		switch ( datatype ){
-		case DATATYPE_INTEGER:
-			return parseInt($field.find('input').val());
+		for ( var key in options.attributes ){
+			attr.push(key + '="' + Handlebars.Utils.escapeExpression(options.attributes[key]) + '"');
+		}
 
-		case DATATYPE_FLOAT:
-		case DATATYPE_DOUBLE:
-			return parseFloat($field.find('input').val());
+		return new Handlebars.SafeString(attr.join(' '));
+	});
 
-		case DATATYPE_TIME:
-			return $field.data('time').serialize();
+	function Field(datatype, options){
+		this.datatype = datatype;
+		this.element = this.create(options);
+		this.bind();
+	};
 
-		default:
+	Field.prototype = {
+		/**
+		 * Get/Set the value of this field.
+		 */
+		value: function(value){
+			var e = this.element.find('input');
+			return e.val.apply(e, arguments);
+		},
+
+		/**
+		 * Serialize the data so it can be sent over the socket to the application.
+		 */
+		serialize: function(){
 			return value;
-		}
+		},
+
+		/**
+		 * Take serialized data and update the field with the new data.
+		 */
+		unserialize: function(data){
+			this.value(data);
+		},
+
+		/**
+		 * Create DOM elements.
+		 */
+		create: function(options){
+			var html = this.template(options);
+			html.data('field', this);
+			return html;
+		},
+
+		/**
+		 * Return the template filename (in src/templates, remember to recompile after updating)
+		 */
+		template_filename: function(datatype){
+			return 'default.html';
+		},
+
+		/**
+		 * Load template and return DOM.
+		 */
+		template: function(options){
+			var filename = this.template_filename(this.datatype);
+			return $(Handlebars.templates[filename]({
+				attributes: this.filter_attributes(options),
+			}));
+		},
+
+		/**
+		 * Returns a list of allowed options/attributes that the user can set on this field type.
+		 */
+		allowed_attributes: function(){
+			return [];
+		},
+
+		/**
+		 * Filter out the allowed set of attributes/options for this field type.
+		 */
+		filter_attributes: function(options){
+			var tmp = {};
+			var allowed = this.allowed_attributes();
+
+			for ( var key in options ){
+				if ( allowed.indexOf(key) >= 0 ){
+					tmp[key] = options[key];
+				}
+			}
+
+			return tmp;
+		},
+
+		/**
+		 * Setup bindings.
+		 */
+		bind: function(){
+			this.element.find('input').change(function(){
+				send_update(item);
+			});
+		},
+	};
+
+	function NumericalField(datatype, options) {
+		Field.call(this, datatype, options);
 	}
 
-	function unserialize(field, value){
-		var $field = $(field);
-		var datatype = $field.data('datatype');
+	NumericalField.prototype = $.extend(Object.create(Field.prototype), {
+		constructor: NumericalField,
 
-		switch ( datatype ){
-		default:
-			$field.find('input').val(value);
-		}
-	}
+		serialize: function(){
+			switch ( this.datatype ){
+			case DATATYPE_INTEGER:
+				return parseInt(this.value());
 
-	function apply_field_options(item, field){
-		if ( !(field && item.options) ) return;
+			case DATATYPE_FLOAT:
+			case DATATYPE_DOUBLE:
+				return parseFloat(this.value());
 
-		switch ( item.datatype ){
+			default:
+				return value;
+			}
+		},
+
+		allowed_attributes: function(){
+			return ['min', 'max', 'step'];
+		},
+	});
+
+	Field.factory = function(datatype, options){
+		switch (datatype){
 		case DATATYPE_INTEGER:
 		case DATATYPE_FLOAT:
 		case DATATYPE_DOUBLE:
-			if ( 'min' in item.options ){
-				field.attr('min', item.options.min);
-			}
-			if ( 'max' in item.options ){
-				field.attr('max', item.options.max);
-			}
-			if ( 'step' in item.options ){
-				field.attr('step', item.options.step);
-			}
-			break;
+			return new NumericalField(datatype, options);
+		default:
+			return new Field(datatype, options);
 		}
-	}
-
-	function template_filename(datatype){
-		switch ( datatype ){
-		default: return false;
-		}
-	}
-
-	function render_template(datatype, data){
-		var filename = template_filename(datatype);
-		if ( !filename ){
-			return $('<div class="form-group"><input type="number" class="form-control" /></div>');
-		}
-		return $(Handlebars.templates[filename](data));
-	}
+	};
 
 	function render_var(item){
 		if ( item.elem ){
 			/* only update value without recreating element */
 			/* @todo handle change of datatype */
-			unserialize(item.field, item.value);
+			item.field.unserialize(item.value);
 			return;
 		}
 
@@ -88,29 +160,11 @@ var tweaklib = (function(){
 			item.elem.find('h3').append(' <small>' + item.description + '</small>');
 		}
 
-		var field = null;
-		switch ( item.datatype ){
-		case DATATYPE_INTEGER:
-		case DATATYPE_FLOAT:
-		case DATATYPE_DOUBLE:
-			field = render_template(item.datatype);
-			break;
+		var field = Field.factory(item.datatype, item.options);
+		field.unserialize(item.value);
 
-		default:
-			console.log('Unknown datatype', item.datatype);
-		}
-
-		if ( field ){
-			field.data('datatype', item.datatype);
-			apply_field_options(item, field);
-			unserialize(field, item.value);
-
-			field.find('input').change(function(){
-				send_update(item);
-			});
-			item.elem.append(field);
-			item.field = field;
-		}
+		item.elem.append(field.element);
+		item.field = field;
 
 		$('#vars').append(item.elem);
 	}
@@ -119,7 +173,7 @@ var tweaklib = (function(){
 		socket.send(JSON.stringify({
 			type: 'update',
 			handle: item.handle,
-			value: serialize(item.field),
+			value: item.field.serialize(),
 		}));
 	}
 
@@ -139,7 +193,7 @@ var tweaklib = (function(){
 		for ( var key in data ){
 			var elem = data[key];
 			var item = var_from_handle(elem.handle);
-			unserialize(item.field, elem.value);
+			item.field.unserialize(elem.value);
 		}
 	}
 
