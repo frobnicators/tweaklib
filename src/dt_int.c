@@ -8,7 +8,7 @@
 #include <string.h>
 #include <json.h>
 
-static struct json_object* store_int(struct var* var){
+static struct json_object* store_int(const struct var* var){
 	return json_object_new_int(*(int*)var->ptr);
 }
 

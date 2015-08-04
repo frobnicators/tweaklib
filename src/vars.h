@@ -18,7 +18,7 @@ typedef enum {
 } datatype_t;
 
 typedef void(*update_callback)(tweak_handle handle);
-typedef struct json_object* (*store_callback)(struct var*);
+typedef struct json_object* (*store_callback)(const struct var*);
 typedef void (*load_callback)(struct var*, struct json_object*);
 
 struct var {

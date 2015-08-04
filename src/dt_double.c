@@ -8,7 +8,7 @@
 #include <string.h>
 #include <json.h>
 
-static struct json_object* store_double(struct var* var){
+static struct json_object* store_double(const struct var* var){
 	return json_object_new_double(*(double*)var->ptr);
 }
 
