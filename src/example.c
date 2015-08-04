@@ -37,7 +37,7 @@ int main(int argc, const char* argv[]){
 	tweak_init(8080, 0);
 
 	/* just a plain variable */
-	tweak_int("foo", &foo);
+	tweak_handle tl_foo = tweak_int("foo", &foo);
 
 	/* extra properties */
 	tweak_handle tl_bar = tweak_float("bar", &bar);
@@ -51,10 +51,13 @@ int main(int argc, const char* argv[]){
 		tweak_lock();
 		{
 			printf("foo: %d bar: %.1f\n", foo, bar);
+
 			foo++;
+
+			tweak_handle update[] = {tl_foo};
+			tweak_refresh_vars(update, sizeof(update));
 		}
 		tweak_unlock();
-		tweak_refresh();
 
 		sleep(1);
 	}

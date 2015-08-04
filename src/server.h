@@ -2,6 +2,7 @@
 #define TWEAKLIB_INT_SERVER_H
 
 #include "tweak/tweak.h"
+#include "vars.h"
 #include "worker.h"
 #include <stddef.h>
 
@@ -9,7 +10,14 @@
 
 void server_init(int port, const char* addr);
 void server_cleanup();
-void server_refresh_vars();
+
+/**
+ * Update variables on all clients.
+ *
+ * @param vars array with all variables to update
+ * @param n number of array elements
+ */
+void server_refresh(struct var* vars[], size_t n);
 
 const char* peer_addr(int sd, char buf[PEER_ADDR_LEN]);
 

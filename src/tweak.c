@@ -104,7 +104,36 @@ void tweak_unlock(){
 }
 
 void tweak_refresh(){
-	server_refresh_vars();
+	const size_t n = list_size(vars);
+	const size_t bytes = sizeof(void*) * n;
+	struct var** set = malloc(bytes);
+	size_t i;
+	void** it;
+
+	/* fill set with all variables */
+	for ( i = 0, it = list_begin(vars); it != list_end(vars); i++, it++ ){
+		set[i] = *(struct var**)it;
+	}
+
+	server_refresh(set, bytes);
+	free(set);
+}
+
+void tweak_refresh_vars(tweak_set begin, size_t size){
+	const size_t n = size / sizeof(tweak_handle);
+	const size_t bytes = sizeof(void*) * n;
+	struct var** set = malloc(bytes);
+	size_t i;
+
+	/* fill set with selected variables */
+	tweak_handle* cur = begin;
+	tweak_handle* end = begin + n;
+	for ( i = 0; cur < end; i++, cur++ ){
+		set[i] = var_from_handle(*cur);
+	}
+
+	server_refresh(set, bytes);
+	free(set);
 }
 
 tweak_handle var_add(struct var* var){

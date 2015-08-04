@@ -1,6 +1,8 @@
 #ifndef TWEAKLIB_H
 #define TWEAKLIB_H
 
+#include <stddef.h>
+
 #ifdef TWEAKLIB_EXPORT
 #pragma GCC visibility push(default)
 #endif
@@ -10,6 +12,7 @@ extern "C" {
 #endif
 
 typedef unsigned int tweak_handle;
+typedef tweak_handle tweak_set[];
 typedef void(*tweak_callback)(tweak_handle handle);
 typedef void(*tweak_output_func)(const char* str);
 typedef struct {const char* key; int value;} tweak_enum_value;
@@ -82,10 +85,16 @@ void tweak_lock();
 void tweak_unlock();
 
 /**
- * Call this after updating variables (e.g. once per frame) to send updates
- * to clients.
+ * Send an updated copy of all variables to connected clients.
  */
 void tweak_refresh();
+
+/**
+ * Send updated copies of selected variables to connected clients.
+ * @param vars array of all handles to update
+ * @param size sizeof(array)
+ */
+void tweak_refresh_vars(tweak_set vars, size_t size);
 
 #ifdef __cplusplus
 }

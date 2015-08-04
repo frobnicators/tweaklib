@@ -124,9 +124,9 @@ static int max(int a, int b){
 	return (a>b) ? a : b;
 }
 
-void server_refresh_vars(){
+void server_refresh(struct var* vars[], size_t bytes){
 	for ( int i = 0; i < MAX_CLIENT_SLOTS; i++ ){
-		ipc_push(clients[i], IPC_REFRESH, NULL, 0);
+		ipc_push(clients[i], IPC_REFRESH, vars, bytes);
 	}
 }
 
@@ -147,13 +147,15 @@ static void* server_loop(void* arg){
 		/* handle IPC */
 		if ( FD_ISSET(server.pipe[READ_FD], &fds) ){
 			enum IPC ipc;
-			switch ( ipc=ipc_fetch(&server, NULL, NULL) ){
+			char* payload = NULL;
+			size_t payload_size = 0;
+			switch ( ipc=ipc_fetch(&server, (void**)&payload, &payload_size) ){
 			case IPC_NONE:
 				break;
 			default:
 				logmsg("Unexpected IPC command %s (%d) by server worker\n", ipc_name(ipc), ipc);
 			}
-			continue;
+			free(payload);
 			continue;
 		}
 

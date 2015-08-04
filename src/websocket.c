@@ -144,27 +144,39 @@ enum {
 	SERIALIZE_FULL = 1,
 };
 
-static struct json_object* serialize_vars(int mode){
+static struct json_object* serialize_var(const struct var* var, int mode){
+	struct json_object* json = json_object_new_object();
+	if ( mode == SERIALIZE_FULL ){
+		json_object_object_add(json, "name", json_object_new_string(var->name));
+		json_object_object_add(json, "description", var->description ? json_object_new_string(var->description) : NULL);
+		json_object_object_add(json, "options", var->options ? json_tokener_parse(var->options) : NULL);
+		json_object_object_add(json, "datatype", json_object_new_int(var->datatype));
+	}
+	json_object_object_add(json, "handle", json_object_new_int(var->handle));
+	json_object_object_add(json, "value", var->store(var));
+	return json;
+}
+
+static struct json_object* serialize_vars_all(int mode){
 	struct json_object* json_vars = json_object_new_array();
 	for ( void** it = list_begin(vars); it != list_end(vars); it++ ){
-		struct var* var = *(struct var**)it;
-		struct json_object* json_var = json_object_new_object();
-		if ( mode == SERIALIZE_FULL ){
-			json_object_object_add(json_var, "name", json_object_new_string(var->name));
-			json_object_object_add(json_var, "description", var->description ? json_object_new_string(var->description) : NULL);
-			json_object_object_add(json_var, "options", var->options ? json_tokener_parse(var->options) : NULL);
-			json_object_object_add(json_var, "datatype", json_object_new_int(var->datatype));
-		}
-		json_object_object_add(json_var, "handle", json_object_new_int(var->handle));
-		json_object_object_add(json_var, "value", var->store(var));
-		json_object_array_add(json_vars, json_var);
+		const struct var* var = *(const struct var**)it;
+		json_object_array_add(json_vars, serialize_var(var, mode));
+	}
+	return json_vars;
+}
+
+static struct json_object* serialize_vars_set(int mode, struct var* set[], size_t n){
+	struct json_object* json_vars = json_object_new_array();
+	for ( size_t i = 0; i < n; i++ ){;
+		json_object_array_add(json_vars, serialize_var(set[i], mode));
 	}
 	return json_vars;
 }
 
 static void websocket_hello(struct worker* client){
 	struct json_object* root = json_object_new_object();
-	json_object_object_add(root, "vars", serialize_vars(SERIALIZE_FULL));
+	json_object_object_add(root, "vars", serialize_vars_all(SERIALIZE_FULL));
 	json_object_object_add(root, "type", json_object_new_string("hello"));
 
 	const char* data = json_object_to_json_string_ext(root, 0);
@@ -173,9 +185,9 @@ static void websocket_hello(struct worker* client){
 	json_object_put(root);
 }
 
-static void websocket_refresh(struct worker* client){
+static void websocket_refresh(struct worker* client, struct var* set[], size_t n){
 	struct json_object* root = json_object_new_object();
-	json_object_object_add(root, "vars", serialize_vars(SERIALIZE_SLIM));
+	json_object_object_add(root, "vars", serialize_vars_set(SERIALIZE_SLIM, set, n));
 	json_object_object_add(root, "type", json_object_new_string("refresh"));
 
 	const char* data = json_object_to_json_string_ext(root, 0);
@@ -257,15 +269,18 @@ void websocket_loop(struct worker* client){
 		/* handle IPC */
 		if ( FD_ISSET(client->pipe[READ_FD], &fds) ){
 			enum IPC ipc;
-			switch ( ipc=ipc_fetch(client, NULL, NULL) ){
+			char* payload = NULL;
+			size_t payload_size = 0;
+			switch ( ipc=ipc_fetch(client, (void**)payload, &payload_size) ){
 			case IPC_NONE:
 				break;
 			case IPC_REFRESH:
-				websocket_refresh(client);
+				websocket_refresh(client, (struct var**)payload, payload_size / sizeof(struct var));
 				break;
 			default:
 				logmsg("Unexpected IPC command %s (%d) by websocket worker\n", ipc_name(ipc), ipc);
 			}
+			free(payload);
 			continue;
 		}
 
