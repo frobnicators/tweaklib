@@ -271,11 +271,11 @@ void websocket_loop(struct worker* client){
 			enum IPC ipc;
 			char* payload = NULL;
 			size_t payload_size = 0;
-			switch ( ipc=ipc_fetch(client, (void**)payload, &payload_size) ){
+			switch ( ipc=ipc_fetch(client, (void**)&payload, &payload_size) ){
 			case IPC_NONE:
 				break;
 			case IPC_REFRESH:
-				websocket_refresh(client, (struct var**)payload, payload_size / sizeof(struct var));
+				websocket_refresh(client, (struct var**)payload, payload_size / sizeof(void*));
 				break;
 			default:
 				logmsg("Unexpected IPC command %s (%d) by websocket worker\n", ipc_name(ipc), ipc);
