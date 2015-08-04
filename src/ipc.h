@@ -17,13 +17,16 @@ enum IPC {
 
 /**
  * Fetch IPC command and try to handle it. If return value is non-zero caller should handle it.
+ *
+ * If payload is non-null and the command has payload attached payload and
+ * payload_size will contain the additional data.
  */
-enum IPC ipc_fetch(struct worker* client);
+enum IPC ipc_fetch(struct worker* client, void** payload, size_t* payload_size);
 
 /**
  * Send IPC command to worker.
  */
-void ipc_push(struct worker* thread, enum IPC command);
+void ipc_push(struct worker* thread, enum IPC command, const void* payload, size_t payload_size);
 
 /**
  * Convert IPC enum to string.

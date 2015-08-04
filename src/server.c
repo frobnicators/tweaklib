@@ -97,11 +97,11 @@ void server_init(int port, const char* listen_addr){
 
 void server_cleanup(){
 	/* tell server thread to stop */
-	ipc_push(&server, IPC_SHUTDOWN);
+	ipc_push(&server, IPC_SHUTDOWN, NULL, 0);
 
 	/* tell all clients threads to stop */
 	for ( int i = 0; i < MAX_CLIENT_SLOTS; i++ ){
-		ipc_push(clients[i], IPC_SHUTDOWN);
+		ipc_push(clients[i], IPC_SHUTDOWN, NULL, 0);
 	}
 
 	/* wait for server shutdown */
@@ -126,7 +126,7 @@ static int max(int a, int b){
 
 void server_refresh_vars(){
 	for ( int i = 0; i < MAX_CLIENT_SLOTS; i++ ){
-		ipc_push(clients[i], IPC_REFRESH);
+		ipc_push(clients[i], IPC_REFRESH, NULL, 0);
 	}
 }
 
@@ -147,7 +147,7 @@ static void* server_loop(void* arg){
 		/* handle IPC */
 		if ( FD_ISSET(server.pipe[READ_FD], &fds) ){
 			enum IPC ipc;
-			switch ( ipc=ipc_fetch(&server) ){
+			switch ( ipc=ipc_fetch(&server, NULL, NULL) ){
 			case IPC_NONE:
 				break;
 			default:
@@ -372,7 +372,7 @@ void* client_loop(void* ptr){
 		/* handle IPC */
 		if ( FD_ISSET(client->pipe[READ_FD], &fds) ){
 			enum IPC ipc;
-			switch ( ipc=ipc_fetch(client) ){
+			switch ( ipc=ipc_fetch(client, NULL, NULL) ){
 			case IPC_NONE:
 			case IPC_REFRESH: /* ignored by http */
 				break;

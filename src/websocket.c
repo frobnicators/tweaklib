@@ -257,7 +257,7 @@ void websocket_loop(struct worker* client){
 		/* handle IPC */
 		if ( FD_ISSET(client->pipe[READ_FD], &fds) ){
 			enum IPC ipc;
-			switch ( ipc=ipc_fetch(client) ){
+			switch ( ipc=ipc_fetch(client, NULL, NULL) ){
 			case IPC_NONE:
 				break;
 			case IPC_REFRESH:
