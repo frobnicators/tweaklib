@@ -62,10 +62,12 @@ static void write_entry(const char* src, const char* dst){
 }
 
 int main(int argc, const char* argv[]){
+	static int filename_offset = 3; /* hack: make passes "pack" and "Makefile" before the real filenames */
+
 	printf("#include \"static.h\"\n");
 
 	/* file data */
-	for ( int i = 2; i < argc; i++ ){
+	for ( int i = filename_offset; i < argc; i++ ){
 		const char* filename = strip_prefix(argv[i]);
 		const char* varname = mangle_filename(filename);
 		printf("static const char tweak_static_%s[] = \"", varname);
@@ -92,7 +94,7 @@ int main(int argc, const char* argv[]){
 	/* file table */
 	printf("struct file_entry file_table[] = {\n");
 	write_entry("", srcdir "static/index.html");
-	for ( int i = 2; i < argc; i++ ){
+	for ( int i = filename_offset; i < argc; i++ ){
 		write_entry(argv[i], argv[i]);
 	}
 	printf("\t{NULL, NULL, NULL, 0},\n"); /* sentinel */

@@ -42,7 +42,7 @@ pack_DATAFILES = \
 	static/tweaklib/field.js \
 	static/tweaklib/numerical.js
 
-src/static.c: pack ${pack_DATAFILES}
+src/static.c: pack Makefile ${pack_DATAFILES}
 	$(AM_V_GEN)./pack $^ > $@
 
 ${top_srcdir}/static/constants.js: src/vars.h
