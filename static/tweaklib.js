@@ -18,131 +18,6 @@ var tweaklib = (function(){
 		return new Handlebars.SafeString(attr.join(' '));
 	});
 
-	function Field(datatype, options){
-		this.datatype = datatype;
-		this.element = this.create(options);
-		this.bind();
-	};
-
-	Field.prototype = {
-		/**
-		 * Get/Set the value of this field.
-		 */
-		value: function(value){
-			var e = this.element.find('input');
-			return e.val.apply(e, arguments);
-		},
-
-		/**
-		 * Serialize the data so it can be sent over the socket to the application.
-		 */
-		serialize: function(){
-			return value;
-		},
-
-		/**
-		 * Take serialized data and update the field with the new data.
-		 */
-		unserialize: function(data){
-			this.value(data);
-		},
-
-		/**
-		 * Create DOM elements.
-		 */
-		create: function(options){
-			var html = this.template(options);
-			html.data('field', this);
-			return html;
-		},
-
-		/**
-		 * Return the template filename (in src/templates, remember to recompile after updating)
-		 */
-		template_filename: function(datatype){
-			return 'default.html';
-		},
-
-		/**
-		 * Load template and return DOM.
-		 */
-		template: function(options){
-			var filename = this.template_filename(this.datatype);
-			return $(Handlebars.templates[filename]({
-				attributes: this.filter_attributes(options),
-			}));
-		},
-
-		/**
-		 * Returns a list of allowed options/attributes that the user can set on this field type.
-		 */
-		allowed_attributes: function(){
-			return [];
-		},
-
-		/**
-		 * Filter out the allowed set of attributes/options for this field type.
-		 */
-		filter_attributes: function(options){
-			var tmp = {};
-			var allowed = this.allowed_attributes();
-
-			for ( var key in options ){
-				if ( allowed.indexOf(key) >= 0 ){
-					tmp[key] = options[key];
-				}
-			}
-
-			return tmp;
-		},
-
-		/**
-		 * Setup bindings.
-		 */
-		bind: function(){
-			this.element.find('input').change(function(){
-				send_update(item);
-			});
-		},
-	};
-
-	function NumericalField(datatype, options) {
-		Field.call(this, datatype, options);
-	}
-
-	NumericalField.prototype = $.extend(Object.create(Field.prototype), {
-		constructor: NumericalField,
-
-		serialize: function(){
-			switch ( this.datatype ){
-			case DATATYPE_INTEGER:
-				return parseInt(this.value());
-
-			case DATATYPE_FLOAT:
-			case DATATYPE_DOUBLE:
-				return parseFloat(this.value());
-
-			default:
-				return value;
-			}
-		},
-
-		allowed_attributes: function(){
-			return ['min', 'max', 'step'];
-		},
-	});
-
-	Field.factory = function(datatype, options){
-		switch (datatype){
-		case DATATYPE_INTEGER:
-		case DATATYPE_FLOAT:
-		case DATATYPE_DOUBLE:
-			return new NumericalField(datatype, options);
-		default:
-			return new Field(datatype, options);
-		}
-	};
-
 	function render_var(item){
 		if ( item.elem ){
 			/* only update value without recreating element */
@@ -228,6 +103,17 @@ var tweaklib = (function(){
 	}
 
 	function init(){
+		Field.factory = function(datatype, options){
+			switch (datatype){
+			case DATATYPE_INTEGER:
+			case DATATYPE_FLOAT:
+			case DATATYPE_DOUBLE:
+				return new NumericalField(datatype, options);
+			default:
+				return new Field(datatype, options);
+			}
+		};
+
 		set_status('Connecting', STATUS_CONNECTING);
 		socket = new WebSocket("ws://localhost:8080/socket", "v1.tweaklib.sidvind.com");
 
@@ -257,5 +143,11 @@ var tweaklib = (function(){
 		}
 	}
 
-	init();
+	return {
+		init: init,
+	};
 })();
+
+$(function(){
+	tweaklib.init();
+});

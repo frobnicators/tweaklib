@@ -32,8 +32,17 @@ example_LDFLAGS = -pthread
 example_SOURCES = src/example.c
 
 pack_SOURCES = src/pack.c
+pack_DATAFILES = \
+	static/constants.js \
+	static/handlebars.runtime-v3.0.3.js \
+	static/index.html \
+	static/style.css \
+	static/templates.js \
+	static/tweaklib.js \
+	static/tweaklib/field.js \
+	static/tweaklib/numerical.js
 
-src/static.c: pack static/index.html static/tweaklib.js static/constants.js static/templates.js static/style.css static/handlebars.runtime-v3.0.3.js
+src/static.c: pack ${pack_DATAFILES}
 	$(AM_V_GEN)./pack $^ > $@
 
 ${top_srcdir}/static/constants.js: src/vars.h
