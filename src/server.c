@@ -26,7 +26,7 @@
 
 #define MAX_CLIENT_SLOTS 24
 
-static struct worker server = {0, 0, {0,0}, -1, 0, 1, NULL};
+static struct worker server = WORKER_INITIALIZER;
 static const size_t buffer_size = 16384;
 static unsigned int client_id = 0;
 static struct worker* clients[MAX_CLIENT_SLOTS] = {0,};
@@ -147,15 +147,12 @@ static void* server_loop(void* arg){
 		/* handle IPC */
 		if ( FD_ISSET(server.pipe[READ_FD], &fds) ){
 			enum IPC ipc;
-			char* payload = NULL;
-			size_t payload_size = 0;
-			switch ( ipc=ipc_fetch(&server, (void**)&payload, &payload_size) ){
+			switch ( ipc=ipc_fetch(&server, NULL, 0) ){
 			case IPC_NONE:
 				break;
 			default:
 				logmsg("Unexpected IPC command %s (%d) by server worker\n", ipc_name(ipc), ipc);
 			}
-			free(payload);
 			continue;
 		}
 
@@ -223,10 +220,8 @@ static void* server_loop(void* arg){
 		}
 	};
 
-	/* close socket */
-	shutdown(server.sd, SHUT_RDWR);
-	server.sd = -1;
-
+	/* close server worker */
+	worker_free(&server);
 	logmsg("Tweaklib server closed\n");
 
 	return NULL;
@@ -434,11 +429,7 @@ void* client_loop(void* ptr){
 
 	/* close client connection */
 	clients[client->slot] = NULL;
-	close(client->pipe[0]);
-	close(client->pipe[1]);
-	shutdown(client->sd, SHUT_RDWR);
-	free(client->peeraddr);
-	free(client);
+	worker_free(client);
 	free(buf);
 	return NULL;
 }

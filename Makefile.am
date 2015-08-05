@@ -25,7 +25,7 @@ libtweak_la_SOURCES = \
 	src/utils/base64.c src/utils/base64.h \
 	src/utils/sha1.c src/utils/sha1.h \
 	src/websocket.c src/websocket.h \
-	src/worker.h
+	src/worker.c src/worker.h
 
 example_LDADD = libtweak.la
 example_LDFLAGS = -pthread
