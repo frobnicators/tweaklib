@@ -9,30 +9,46 @@
 #include <errno.h>
 #include <unistd.h>
 
-static int min(int a, int b){
-	return (a<b) ? a : b;
+static const size_t max_payload_size = 256;
+
+/**
+ * Wrapper for read which handles some error conditions. If the error cannot be
+ * handled by this it should be considered fatal.
+ *
+ * @return dst + bytes or NULL on unhandled errors
+ */
+static void* read_wrapper(int fd, void* dst, size_t bytes){
+	void* out = dst;
+	while ( bytes > 0 ){
+		ssize_t result = read(fd, out, bytes);
+		if ( result == -1 ){
+			switch ( errno ){
+			case EAGAIN:
+			case EINTR:
+				continue;
+			default:
+				return NULL;
+			}
+		}
+
+		if ( result == 0 ){
+			errno = EBADFD;
+			return NULL;
+		}
+
+		bytes -= result;
+		out += result;
+	}
+
+	return out;
 }
 
 static void ipc_fetch_payload(struct worker* client, void* dst, size_t payload_size){
-	char buf[64];
+	char buf[max_payload_size];
 
-	while ( payload_size > 0 ){
-		ssize_t bytes = read(client->pipe[READ_FD], dst ? dst : buf, min(sizeof(buf), payload_size));
-		if ( bytes == -1 ){
-			logmsg("ipc_flush - read() failed: %s\n", strerror(errno));
-			logmsg("things will probably explode now, bye bye!\n");
-			return;
-		} else if ( bytes == 0 ){
-			logmsg("ipc_flush - read() no more data\n");
-			logmsg("things will probably explode now, bye bye!\n");
-			return;
-		}
-
-		/* advance in dst buffer */
-		payload_size -= bytes;
-		if ( dst ){
-			dst += bytes;
-		}
+	if ( read_wrapper(client->pipe[READ_FD], dst ? dst : buf, payload_size) == NULL ){
+		logmsg("ipc_fetch_payload - read() failed: %s\n", strerror(errno));
+		logmsg("things will probably explode now, bye bye!\n");
 	}
 }
 
@@ -43,15 +59,15 @@ enum IPC ipc_fetch(struct worker* client, void** payload, size_t* payload_size_p
 
 	/* read command */
 	enum IPC command;
-	if ( read(client->pipe[READ_FD], &command, sizeof(command)) == -1 ){
-		logmsg("ipc_fetch - read() failed: %s\n", strerror(errno));
+	if ( read_wrapper(client->pipe[READ_FD], &command, sizeof(command)) == NULL ){
+		logmsg("ipc_fetch[command] - read() failed: %s\n", strerror(errno));
 		return IPC_NONE;
 	}
 
 	/* read payload size */
 	size_t payload_size;
-	if ( read(client->pipe[READ_FD], &payload_size, sizeof(size_t)) == -1 ){
-		logmsg("ipc_fetch - read() failed: %s\n", strerror(errno));
+	if ( read_wrapper(client->pipe[READ_FD], &payload_size, sizeof(size_t)) == NULL ){
+		logmsg("ipc_fetch[payload_size] - read() failed: %s\n", strerror(errno));
 		return IPC_NONE;
 	}
 
@@ -87,6 +103,11 @@ enum IPC ipc_fetch(struct worker* client, void** payload, size_t* payload_size_p
 
 void ipc_push(struct worker* thread, enum IPC command, const void* payload, size_t payload_size){
 	if ( !thread ) return;
+
+	if ( payload_size > max_payload_size ){
+		logmsg("too large ipc payload, ignored\n");
+		return;
+	}
 
 	/* write command */
 	if ( write(thread->pipe[WRITE_FD], &command, sizeof(command)) == -1 ){

@@ -7,6 +7,7 @@
 #include <cppunit/ui/text/TestRunner.h>
 #include <cppunit/extensions/HelperMacros.h>
 
+#include "tweak/tweak.h"
 #include "ipc.h"
 #include "worker.h"
 #include "utils/sha1.h"
@@ -17,6 +18,10 @@
 #include <fcntl.h>
 
 static struct worker worker;
+
+static void output(const char* str){
+	fputs(str, stderr);
+}
 
 class Test: public CppUnit::TestFixture {
 	CPPUNIT_TEST_SUITE(Test);
@@ -90,6 +95,8 @@ CPPUNIT_TEST_SUITE_REGISTRATION(Test);
 int main(int argc, const char* argv[]){
 	CppUnit::Test *suite = CppUnit::TestFactoryRegistry::getRegistry().makeTest();
 	CppUnit::TextUi::TestRunner runner;
+
+	tweak_output(output);
 
 	if ( pipe2(worker.pipe, O_NONBLOCK) != 0){ /* non-block so it is possible to easily test that the pipe is actually empty */
 		abort();
