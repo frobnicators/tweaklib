@@ -307,10 +307,17 @@ static void handle_get(struct worker* client, const http_request_t req, http_res
 		return;
 	}
 
+	/* remove query string */
+	char* url = strdup(req->url);
+	char* qs = strchr(url, '?');
+	if ( qs ){
+		*qs = 0;
+	}
+
 	/* handle static files */
 	struct file_entry* entry = file_table;
 	while ( entry->filename ){
-		if ( strcmp(entry->filename, req->url) != 0 ){
+		if ( strcmp(entry->filename, url) != 0 ){
 			entry++;
 			continue;
 		}
@@ -336,12 +343,15 @@ static void handle_get(struct worker* client, const http_request_t req, http_res
 		}
 
 		http_response_write_chunk(client->sd, NULL, 0);
+		free(url);
 		return;
 	}
 
 	/* nothing found, 404 */
 	write_error(client, req, resp, 404, NULL);
+	free(url);
 }
+
 
 static void handle_post(struct worker* client, const http_request_t req, http_response_t resp){
 
