@@ -183,9 +183,23 @@ var tweaklib = (function(){
 		});
 	}
 
+	function load_script(filename){
+		/* kind of similar to jQuery.getScript but inserts to head so
+		 * filenames/line-numbers is preserved, making debugging easier. */
+		/** @todo rumors says this wont work in IE */
+		var dfn = $.Deferred();
+		var script = document.createElement('script');
+		document.head.appendChild(script);
+		script.type = 'text/javascript';
+		script.onload = function(){ dfn.resolve(); };
+		script.onerror = function(){ dfn.fail(); };
+		script.src = filename;
+		return dfn.promise();
+	}
+
 	function init(){
 		add_task($.map(files, function(filename){
-			var func = function(){ return $.getScript(filename); };
+			var func = function(){ return load_script(filename); };
 			func.message = 'Loading ' + filename;
 			return func;
 		}));
