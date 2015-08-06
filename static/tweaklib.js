@@ -6,6 +6,9 @@ var tweaklib = (function(){
 	var socket = null;
 	var vars = {};
 	var id_key = 1;
+	var factory = {};
+	var files = ['/templates.js', '/constants.js', '/tweaklib/field.js', '/tweaklib/numerical.js'];
+	var tasks = []; /* use add_task() to push loading tasks */
 
 	Handlebars.registerHelper('field-attributes', function(context) {
 		var options = context.data.root;
@@ -35,7 +38,7 @@ var tweaklib = (function(){
 			item.elem.find('h3').append(' <small>' + item.description + '</small>');
 		}
 
-		var field = Field.factory(item.datatype, item.options);
+		var field = factory[item.datatype](item.options);
 		field.unserialize(item.value);
 
 		item.elem.append(field.element);
@@ -56,8 +59,19 @@ var tweaklib = (function(){
 		for ( var key in data ){
 			var elem = data[key];
 			vars[elem.handle] = item = $.extend({}, vars[elem.handle], elem);
-			render_var(item);
 		}
+	}
+
+	function render(){
+		var dfn = $.Deferred();
+		setTimeout(function(){
+			for ( var key in vars ){
+				var item = vars[key];
+				render_var(item);
+			}
+			dfn.resolve();
+		}, 0);
+		return dfn.promise();
 	}
 
 	function var_from_handle(handle){
@@ -95,24 +109,14 @@ var tweaklib = (function(){
 			button.click(function(){
 				$(this).hide();
 				set_status('Connecting', STATUS_CONNECTING);
-				init();
+				connect();
 			});
 			status.append(button);
 		}
-
 	}
 
-	function init(){
-		Field.factory = function(datatype, options){
-			switch (datatype){
-			case DATATYPE_INTEGER:
-			case DATATYPE_FLOAT:
-			case DATATYPE_DOUBLE:
-				return new NumericalField(datatype, options);
-			default:
-				return new Field(datatype, options);
-			}
-		};
+	function connect(){
+		var dfn = $.Deferred();
 
 		set_status('Connecting', STATUS_CONNECTING);
 		socket = new WebSocket("ws://localhost:8080/socket", "v1.tweaklib.sidvind.com");
@@ -124,6 +128,7 @@ var tweaklib = (function(){
 		socket.onerror = function(event){
 			console.log(event);
 			set_status('Disconnected', STATUS_FAILURE);
+			dfn.fail();
 		}
 
 		socket.onclose = function(event){
@@ -135,16 +140,83 @@ var tweaklib = (function(){
 
 			if ( data.type === 'hello' ){
 				load_vars(data.vars);
+				dfn.resolve();
 			} else if ( data.type == 'refresh' ){
 				refresh_vars(data.vars);
 			} else {
 				console.log('message', data);
 			}
 		}
+
+		return dfn.promise();
+	}
+
+	function update_progress(i, msg){
+		var n = Math.ceil(i / (tasks.length-1) * 100);
+		var p = n + '%';
+		$('#loading .progress-bar').attr('aria-valuenow', n).css('width', p).html(p);
+		$('#loading p').html(msg);
+	}
+
+	function add_task(func){
+		if ( Array.isArray(func) ){
+			for ( var i in func ){
+				add_task(func[i]);
+			}
+			return;
+		}
+
+		var n = tasks.length;
+		tasks.push(function(){
+			update_progress(n, func.message);
+			return func();
+		});
+	}
+
+	function init(){
+		add_task($.map(files, function(filename){
+			var func = function(){ return $.getScript(filename); };
+			func.message = 'Loading ' + filename;
+			return func;
+		}));
+		add_task(connect);
+		add_task(render);
+
+		var loader = $.Deferred();
+
+		var dfn = tasks.reduce(function(prev,cur){
+			return prev.then(cur);
+		}, loader);
+
+		dfn.then(function(){
+			setTimeout(function(){
+				$('#loading').remove();
+				$('#vars').show();
+			}, 500);
+		});
+
+		dfn.fail(function(){
+			$('#loading p').addClass('alert alert-danger').prepend('Task failed: ');
+		});
+
+		loader.resolve();
 	}
 
 	return {
 		init: init,
+
+		register_field: function(datatype, callback){
+			if ( !Array.isArray(datatype) ){
+				datatype = [datatype];
+			}
+
+			for ( var key in datatype ){
+				var dt = datatype[key];
+				factory[datatype[key]] = function(options){
+					return callback(dt, options);
+				};
+			}
+		},
 	};
 })();
 
