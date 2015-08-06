@@ -7,19 +7,8 @@ var tweaklib = (function(){
 	var vars = {};
 	var id_key = 1;
 	var factory = {};
-	var files = ['/templates.js', '/constants.js', '/tweaklib/field.js', '/tweaklib/numerical.js'];
+	var files = ['/handlebars.runtime-v3.0.3.js', '/templates.js', '/constants.js', '/tweaklib/field.js', '/tweaklib/numerical.js'];
 	var tasks = []; /* use add_task() to push loading tasks */
-
-	Handlebars.registerHelper('field-attributes', function(context) {
-		var options = context.data.root;
-		var attr = [];
-
-		for ( var key in options.attributes ){
-			attr.push(key + '="' + Handlebars.Utils.escapeExpression(options.attributes[key]) + '"');
-		}
-
-		return new Handlebars.SafeString(attr.join(' '));
-	});
 
 	function render_var(item){
 		if ( item.elem ){
@@ -73,6 +62,7 @@ var tweaklib = (function(){
 		}, 0);
 		return dfn.promise();
 	}
+	render.message = "Rendering fields";
 
 	function var_from_handle(handle){
 		return vars[handle];
@@ -115,6 +105,25 @@ var tweaklib = (function(){
 		}
 	}
 
+	function init_handlebars(){
+		var dfn = $.Deferred();
+		setTimeout(function(){
+			Handlebars.registerHelper('field-attributes', function(context) {
+				var options = context.data.root;
+				var attr = [];
+
+				for ( var key in options.attributes ){
+					attr.push(key + '="' + Handlebars.Utils.escapeExpression(options.attributes[key]) + '"');
+				}
+
+				return new Handlebars.SafeString(attr.join(' '));
+			});
+			dfn.resolve();
+		}, 0);
+		return dfn.promise();
+	}
+	init_handlebars.message = "Initializing handlebars";
+
 	function connect(){
 		var dfn = $.Deferred();
 
@@ -150,6 +159,7 @@ var tweaklib = (function(){
 
 		return dfn.promise();
 	}
+	connect.message = "Connecting to application";
 
 	function update_progress(i, msg){
 		var n = Math.ceil(i / (tasks.length-1) * 100);
@@ -179,6 +189,7 @@ var tweaklib = (function(){
 			func.message = 'Loading ' + filename;
 			return func;
 		}));
+		add_task(init_handlebars);
 		add_task(connect);
 		add_task(render);
 
