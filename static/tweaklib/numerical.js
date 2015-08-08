@@ -1,4 +1,6 @@
 (function(){
+	'use strict';
+
 	function NumericalField(datatype, options) {
 		Field.call(this, datatype, options);
 	}
@@ -8,15 +10,15 @@
 
 		serialize: function(){
 			switch ( this.datatype ){
-			case DATATYPE_INTEGER:
+			case constants.DATATYPE_INTEGER:
 				return parseInt(this.value());
 
-			case DATATYPE_FLOAT:
-			case DATATYPE_DOUBLE:
+			case constants.DATATYPE_FLOAT:
+			case constants.DATATYPE_DOUBLE:
 				return parseFloat(this.value());
 
 			default:
-				return value;
+				return this.value();
 			}
 		},
 
@@ -25,7 +27,7 @@
 		},
 	});
 
-	tweaklib.register_field([DATATYPE_INTEGER, DATATYPE_FLOAT, DATATYPE_DOUBLE], function(datatype, options){
+	tweaklib.register_field([constants.DATATYPE_INTEGER, constants.DATATYPE_FLOAT, constants.DATATYPE_DOUBLE], function(datatype, options){
 		return new NumericalField(datatype, options);
 	});
 })();

@@ -3,9 +3,18 @@
 	"browser": true,
 	"jquery": true,
 
-	"es3": true,
 	"eqnull": true,
 	"undef": true,
 	"strict": true,
-	"loopfunc": true
+	"loopfunc": true,
+
+	"globals": {
+		"Field": false,
+		"Handlebars": false,
+		"TweakSocket": false,
+		"Variable": false,
+		"console": false,
+		"constants": false,
+		"tweaklib": false
+	}
 }

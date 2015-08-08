@@ -1,8 +1,12 @@
+/* globals tweaklib: true */
 var tweaklib = (function(){
+	'use strict';
+
 	/* list of additional files to load */
 	var files = [
-		'/handlebars.runtime-v3.0.3.js',
-		'/templates.js', '/constants.js',
+		'/vendor/handlebars.runtime-v3.0.3.js',
+		'/generated/templates.js',
+		'/generated/constants.js',
 		'/tweaklib/field.js',
 		'/tweaklib/numerical.js',
 		'/tweaklib/variable.js',
@@ -165,5 +169,6 @@ var tweaklib = (function(){
 })();
 
 $(function(){
+	'use strict';
 	tweaklib.init();
 });

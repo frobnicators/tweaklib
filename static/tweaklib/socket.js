@@ -1,8 +1,11 @@
+/* globals TweakSocket: true */
 var TweakSocket = (function(){
-	const STATUS_OK = 1;
-	const STATUS_FAILURE = 2;
-	const STATUS_CONNECTING = 3;
-	const PROTOCOL = 'v1.tweaklib.sidvind.com';
+	'use strict';
+
+	var STATUS_OK = 1;
+	var STATUS_FAILURE = 2;
+	var STATUS_CONNECTING = 3;
+	var PROTOCOL = 'v1.tweaklib.sidvind.com';
 
 	function TweakSocket(handlers){
 		this.handlers = handlers;
@@ -18,17 +21,17 @@ var TweakSocket = (function(){
 
 		this.socket.onopen = function(event){
 			self.set_status('Connected', STATUS_OK);
-		}
+		};
 
 		this.socket.onerror = function(event){
 			console.log(event);
 			self.set_status('Disconnected', STATUS_FAILURE);
 			dfn.fail();
-		}
+		};
 
 		this.socket.onclose = function(event){
 			self.set_status('Disconnected', STATUS_FAILURE);
-		}
+		};
 
 		this.socket.onmessage = function(event){
 			var data = JSON.parse(event.data);
@@ -43,18 +46,18 @@ var TweakSocket = (function(){
 			if ( data.type === 'hello' ){
 				dfn.resolve();
 			}
-		}
+		};
 
 		return dfn.promise();
-	}
+	};
 
 	TweakSocket.prototype.send = function(data){
 		this.socket.send(data);
-	}
+	};
 
 	TweakSocket.prototype.get_url = function(){
 		return 'ws://' + window.location.host + '/socket';
-	}
+	};
 
 	TweakSocket.prototype.set_status = 	function set_status(msg, type){
 		var status = $('#status');
@@ -75,11 +78,12 @@ var TweakSocket = (function(){
 		}
 
 		if ( type == STATUS_FAILURE ){
+			var self = this;
 			var button = $('<button class="btn btn-default">Reconnect</button>');
 			button.click(function(){
 				$(this).hide();
 				set_status('Connecting', STATUS_CONNECTING);
-				connect();
+				self.connect();
 			});
 			status.append(button);
 		}
