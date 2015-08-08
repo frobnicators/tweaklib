@@ -80,8 +80,21 @@ Field.prototype = {
 	 * Setup bindings.
 	 */
 	bind: function(){
+		var self = this;
 		this.element.find('input').change(function(){
-			send_update(item);
+			self.send_update();
+		});
+	},
+
+	get_handle: function(){
+		return this.item.handle;
+	},
+
+	send_update: function(){
+		tweaklib.send({
+			type: 'update',
+			handle: this.get_handle(),
+			value: this.serialize(),
 		});
 	},
 };

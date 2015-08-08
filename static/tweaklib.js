@@ -7,72 +7,27 @@ var tweaklib = (function(){
 	var vars = {};
 	var id_key = 1;
 	var factory = {};
-	var files = ['/handlebars.runtime-v3.0.3.js', '/templates.js', '/constants.js', '/tweaklib/field.js', '/tweaklib/numerical.js'];
+	var files = ['/handlebars.runtime-v3.0.3.js', '/templates.js', '/constants.js', '/tweaklib/field.js', '/tweaklib/numerical.js', '/tweaklib/variable.js'];
 	var tasks = []; /* use add_task() to push loading tasks */
-
-	function render_var(item){
-		if ( item.elem ){
-			/* only update value without recreating element */
-			/* @todo handle change of datatype */
-			item.field.unserialize(item.value);
-			return;
-		}
-
-		item.elem = $('<div></div>');
-		item.elem.data('handle', item.handle);
-		item.elem.attr('data-handle', item.handle); /* for easier debugger with inspector */
-		item.elem.addClass('var-' + (id_key++));
-		item.elem.append('<h3>' + item.name + '</h3>');
-		if ( item.description ){
-			item.elem.find('h3').append(' <small>' + item.description + '</small>');
-		}
-
-		var field = factory[item.datatype](item.options);
-		field.unserialize(item.value);
-
-		item.elem.append(field.element);
-		item.field = field;
-
-		$('#vars').append(item.elem);
-	}
-
-	function send_update(item){
-		socket.send(JSON.stringify({
-			type: 'update',
-			handle: item.handle,
-			value: item.field.serialize(),
-		}));
-	}
-
-	function load_vars(data){
-		for ( var key in data ){
-			var elem = data[key];
-			vars[elem.handle] = item = $.extend({}, vars[elem.handle], elem);
-		}
-	}
-
-	function render(){
-		var dfn = $.Deferred();
-		setTimeout(function(){
-			for ( var key in vars ){
-				var item = vars[key];
-				render_var(item);
-			}
-			dfn.resolve();
-		}, 0);
-		return dfn.promise();
-	}
-	render.message = "Rendering fields";
+	var handlers = {};
 
 	function var_from_handle(handle){
 		return vars[handle];
 	}
 
-	function refresh_vars(data){
+	function create_vars(data){
+		for ( var key in data ){
+			var elem = data[key];
+			vars[elem.handle] = new Variable($.extend({}, vars[elem.handle], elem));
+		}
+	}
+
+	function update_vars(data){
 		for ( var key in data ){
 			var elem = data[key];
 			var item = var_from_handle(elem.handle);
-			item.field.unserialize(elem.value);
+			item.unserialize(elem.value);
+			item.render();
 		}
 	}
 
@@ -105,24 +60,28 @@ var tweaklib = (function(){
 		}
 	}
 
-	function init_handlebars(){
-		var dfn = $.Deferred();
-		setTimeout(function(){
-			Handlebars.registerHelper('field-attributes', function(context) {
-				var options = context.data.root;
-				var attr = [];
+	function init_handlebars(dfn){
+		Handlebars.registerHelper('field-attributes', function(context) {
+			var options = context.data.root;
+			var attr = [];
 
-				for ( var key in options.attributes ){
-					attr.push(key + '="' + Handlebars.Utils.escapeExpression(options.attributes[key]) + '"');
-				}
+			for ( var key in options.attributes ){
+				attr.push(key + '="' + Handlebars.Utils.escapeExpression(options.attributes[key]) + '"');
+			}
 
-				return new Handlebars.SafeString(attr.join(' '));
-			});
-			dfn.resolve();
-		}, 0);
-		return dfn.promise();
+			return new Handlebars.SafeString(attr.join(' '));
+		});
+		dfn.resolve();
 	}
-	init_handlebars.message = "Initializing handlebars";
+
+	handlers.hello = function(data){
+		create_vars(data.vars);
+		update_vars(data.vars);
+	};
+
+	handlers.refresh = function(data){
+		update_vars(data.vars);
+	};
 
 	function connect(){
 		var dfn = $.Deferred();
@@ -147,13 +106,15 @@ var tweaklib = (function(){
 		socket.onmessage = function(event){
 			var data = JSON.parse(event.data);
 
-			if ( data.type === 'hello' ){
-				load_vars(data.vars);
-				dfn.resolve();
-			} else if ( data.type == 'refresh' ){
-				refresh_vars(data.vars);
+			if ( data.type in handlers ){
+				handlers[data.type](data);
 			} else {
-				console.log('message', data);
+				console.log('no handler for ' + data.type + ', ignored');
+			}
+
+			/* hack for init message */
+			if ( data.type === 'hello' ){
+				dfn.resolve();
 			}
 		}
 
@@ -183,6 +144,18 @@ var tweaklib = (function(){
 		});
 	}
 
+	function wrap_task(func, message, data){
+		var wrapped = function(){
+			var dfn = $.Deferred();
+			setTimeout(function(){
+				func(dfn, data);
+			}, 0);
+			return dfn.promise();
+		};
+		wrapped.message = message;
+		return wrapped;
+	}
+
 	function load_script(filename){
 		/* kind of similar to jQuery.getScript but inserts to head so
 		 * filenames/line-numbers is preserved, making debugging easier. */
@@ -203,9 +176,8 @@ var tweaklib = (function(){
 			func.message = 'Loading ' + filename;
 			return func;
 		}));
-		add_task(init_handlebars);
+		add_task(wrap_task(init_handlebars, 'Initializing handlebars library'));
 		add_task(connect);
-		add_task(render);
 
 		var loader = $.Deferred();
 
@@ -229,6 +201,11 @@ var tweaklib = (function(){
 
 	return {
 		init: init,
+		factory: factory,
+
+		send: function(data){
+			socket.send(JSON.stringify(data));
+		},
 
 		register_field: function(datatype, callback){
 			if ( !Array.isArray(datatype) ){
