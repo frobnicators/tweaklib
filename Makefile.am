@@ -44,6 +44,7 @@ pack_DATAFILES = \
 	static/tweaklib.js \
 	static/tweaklib/field.js \
 	static/tweaklib/numerical.js \
+	static/tweaklib/socket.js \
 	static/tweaklib/variable.js
 
 src/static.c: pack Makefile ${pack_DATAFILES}

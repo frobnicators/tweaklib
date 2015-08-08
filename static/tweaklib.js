@@ -1,15 +1,19 @@
 var tweaklib = (function(){
-	const STATUS_OK = 1;
-	const STATUS_FAILURE = 2;
-	const STATUS_CONNECTING = 3;
+	/* list of additional files to load */
+	var files = [
+		'/handlebars.runtime-v3.0.3.js',
+		'/templates.js', '/constants.js',
+		'/tweaklib/field.js',
+		'/tweaklib/numerical.js',
+		'/tweaklib/variable.js',
+		'/tweaklib/socket.js'
+	];
 
 	var socket = null;
 	var vars = {};
 	var id_key = 1;
 	var factory = {};
-	var files = ['/handlebars.runtime-v3.0.3.js', '/templates.js', '/constants.js', '/tweaklib/field.js', '/tweaklib/numerical.js', '/tweaklib/variable.js'];
 	var tasks = []; /* use add_task() to push loading tasks */
-	var handlers = {};
 
 	function var_from_handle(handle){
 		return vars[handle];
@@ -31,35 +35,6 @@ var tweaklib = (function(){
 		}
 	}
 
-	function set_status(msg, type){
-		var status = $('#status');
-		var var_container = $('#vars');
-		status.html('<p>' + msg + '</p>');
-		status.removeClass('status-ok status-failure');
-		var_container.removeClass('failure');
-
-		switch (type){
-		case STATUS_OK:
-			status.addClass('status-ok');
-			break;
-		case STATUS_FAILURE:
-		case STATUS_CONNECTING:
-			status.addClass('status-failure');
-			var_container.addClass('failure');
-			break;
-		}
-
-		if ( type == STATUS_FAILURE ){
-			var button = $('<button class="btn btn-default">Reconnect</button>');
-			button.click(function(){
-				$(this).hide();
-				set_status('Connecting', STATUS_CONNECTING);
-				connect();
-			});
-			status.append(button);
-		}
-	}
-
 	function init_handlebars(dfn){
 		Handlebars.registerHelper('field-attributes', function(context) {
 			var options = context.data.root;
@@ -74,51 +49,18 @@ var tweaklib = (function(){
 		dfn.resolve();
 	}
 
-	handlers.hello = function(data){
-		create_vars(data.vars);
-		update_vars(data.vars);
-	};
-
-	handlers.refresh = function(data){
-		update_vars(data.vars);
-	};
-
 	function connect(){
-		var dfn = $.Deferred();
+		socket = new TweakSocket({
+			hello: function(data){
+				create_vars(data.vars);
+				update_vars(data.vars);
+			},
 
-		set_status('Connecting', STATUS_CONNECTING);
-		socket = new WebSocket("ws://localhost:8080/socket", "v1.tweaklib.sidvind.com");
-
-		socket.onopen = function(event){
-			set_status('Connected', STATUS_OK);
-		};
-
-		socket.onerror = function(event){
-			console.log(event);
-			set_status('Disconnected', STATUS_FAILURE);
-			dfn.fail();
-		}
-
-		socket.onclose = function(event){
-			set_status('Disconnected', STATUS_FAILURE);
-		}
-
-		socket.onmessage = function(event){
-			var data = JSON.parse(event.data);
-
-			if ( data.type in handlers ){
-				handlers[data.type](data);
-			} else {
-				console.log('no handler for ' + data.type + ', ignored');
-			}
-
-			/* hack for init message */
-			if ( data.type === 'hello' ){
-				dfn.resolve();
-			}
-		}
-
-		return dfn.promise();
+			refresh: function(data){
+				update_vars(data.vars);
+			},
+		});
+		return socket.connect();
 	}
 	connect.message = "Connecting to application";
 
