@@ -27,6 +27,6 @@
 /pack
 /src/static.c
 /stamp-h1
-/static/constants.js
+/static/generated/constants.js
 /tests/ipc_fuzz.bin
 tweak/version.h

@@ -1,0 +1,11 @@
+// -*- mode: javascript; -*-
+{
+	"browser": true,
+	"jquery": true,
+
+	"es3": true,
+	"eqnull": true,
+	"undef": true,
+	"strict": true,
+	"loopfunc": true
+}
