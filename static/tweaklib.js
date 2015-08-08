@@ -26,7 +26,10 @@ var tweaklib = (function(){
 	function create_vars(data){
 		for ( var key in data ){
 			var elem = data[key];
-			vars[elem.handle] = new Variable($.extend({}, vars[elem.handle], elem));
+			var handle = elem.handle;
+			if ( !(handle in vars) ){
+				vars[elem.handle] = new Variable($.extend({}, elem));
+			}
 		}
 	}
 
