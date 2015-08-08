@@ -20,6 +20,8 @@ templates['wrapper.html'] = template({"1":function(depth0,helpers,partials,data)
     + alias3(((helper = (helper = helpers.handle || (depth0 != null ? depth0.handle : depth0)) != null ? helper : alias1),(typeof helper === alias2 ? helper.call(depth0,{"name":"handle","hash":{},"data":data}) : helper)))
     + "\" id=\"var-"
     + alias3(((helper = (helper = helpers.handle || (depth0 != null ? depth0.handle : depth0)) != null ? helper : alias1),(typeof helper === alias2 ? helper.call(depth0,{"name":"handle","hash":{},"data":data}) : helper)))
+    + "\" class=\"dt-"
+    + ((stack1 = (helpers['datatype-name'] || (depth0 && depth0['datatype-name']) || alias1).call(depth0,(depth0 != null ? depth0.datatype : depth0),{"name":"datatype-name","hash":{},"data":data})) != null ? stack1 : "")
     + "\">\n	<h3>"
     + alias3(((helper = (helper = helpers.name || (depth0 != null ? depth0.name : depth0)) != null ? helper : alias1),(typeof helper === alias2 ? helper.call(depth0,{"name":"name","hash":{},"data":data}) : helper)))
     + ((stack1 = helpers['if'].call(depth0,(depth0 != null ? depth0.description : depth0),{"name":"if","hash":{},"fn":this.program(1, data, 0),"inverse":this.noop,"data":data})) != null ? stack1 : "")

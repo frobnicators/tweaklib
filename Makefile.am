@@ -57,6 +57,13 @@ ${top_srcdir}/static/generated/constants.js: src/vars.h Makefile
 	@echo '/* globals constants: true */' >> $@
 	@echo 'var constants = {' >> $@
 	$(AM_V_GEN)sed -rn 's/[\t ]*(DATATYPE_[A-Z]+) ?= ?([0-9]+),?/\t\1: \2,/gp' $< >> $@
+	@echo -e "\tname_table: {" >> $@
+	$(AM_V_GEN)sed -rn 's/[\t ]*DATATYPE_([A-Z]+) ?= ?([0-9]+),?/\t\t\2: "\L\1",/gp' $< >> $@
+	@echo -e "\t}," >> $@
+	@echo -e "\tname: function(x){" >> $@
+	@echo -e "\t\t'use strict';" >> $@
+	@echo -e "\t\treturn this.name_table[x];" >> $@
+	@echo -e "\t}," >> $@
 	@echo '};' >> $@
 
 ${top_srcdir}/static/generated/templates.js: ${libtweak_la_TEMPLATES}

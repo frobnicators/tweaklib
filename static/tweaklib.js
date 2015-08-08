@@ -50,6 +50,9 @@ var tweaklib = (function(){
 
 			return new Handlebars.SafeString(attr.join(' '));
 		});
+		Handlebars.registerHelper('datatype-name', function(datatype) {
+			return new Handlebars.SafeString(constants.name(datatype));
+		});
 		dfn.resolve();
 	}
 
